@@ -14,6 +14,26 @@ pnpm dev
 bun dev
 ```
 
+## Tech Stack
+
+| Layer         | Technology                   |
+| ------------- | ---------------------------- |
+| Database      | PostgreSQL                   |
+| Backend / API | Next.js API Routes (Node.js) |
+| Frontend      | React (via Next.js)          |
+| Styling       | Tailwind CSS                 |
+| DB Client     | node-postgres (`pg`)         |
+
+---
+
+## Prerequisites
+
+- [Node.js v18+](https://nodejs.org)
+- [PostgreSQL 14+](https://www.postgresql.org)
+- npm (bundled with Node.js)
+
+---
+
 Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
 
 You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
