@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import pool from "@/lib/db";
 
+//get ALL bookings
+
 export async function GET() {
   try {
     const result = await pool.query(`

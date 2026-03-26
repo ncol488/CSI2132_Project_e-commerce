@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import pool from "@/lib/db";
 
+//get ONE specific booking
+
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }

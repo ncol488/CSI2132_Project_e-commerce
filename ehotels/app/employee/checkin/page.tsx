@@ -121,15 +121,44 @@ export default function CheckInPage() {
     }
   }
 
-  function handleCheckIn() {
-    if (!selectedBooking) return;
+  //to change booking to a renting, from pressing button "Complete Check-In" 
+
+async function handleCheckIn() {
+  if (!selectedBooking) return;
+
+  setMessage("");
+
+  try {
+    const response = await fetch(
+      `/api/bookings/${selectedBooking.bookingID}/checkin`,
+      {
+        method: "POST",
+      }
+    );
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      setMessage(data.error || "Check-in failed.");
+      return;
+    }
 
     setMessage(
       `Booking ${formatBookingId(
         selectedBooking.bookingID
-      )} is ready to be converted into a renting.`
+      )} converted to renting ID ${data.rentingID}`
     );
+
+    // refresh table
+    const refreshed = await fetch("/api/bookings");
+    setBookingRows(await refreshed.json());
+
+    setSelectedBooking(null);
+  } catch (error) {
+    console.error(error);
+    setMessage("Something went wrong.");
   }
+}
 
   return (
     <main className="min-h-screen bg-gray-100">
