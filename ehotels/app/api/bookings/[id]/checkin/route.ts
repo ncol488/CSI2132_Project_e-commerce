@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import pool from "@/lib/db";
 
 // make booking into renting, from clicking View details and complete check in
+
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }

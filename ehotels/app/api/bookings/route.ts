@@ -14,6 +14,11 @@ export async function GET() {
         b.end_date AS "endDate",
         b.status
       FROM ehotels.booking b
+      WHERE NOT EXISTS ( 
+        SELECT 1
+        FROM ehotels.renting r
+        WHERE r.bookingid = b.bookingid
+      )
       ORDER BY b.bookingID;
     `);
 
