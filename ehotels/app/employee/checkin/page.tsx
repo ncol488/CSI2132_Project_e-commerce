@@ -231,6 +231,13 @@ async function handleCheckIn() {
               >
                 Walk-In Renting
               </Link>
+
+              <Link
+                href="/employee/rentings"
+                className="px-1 py-3 text-lg font-semibold text-gray-600 transition hover:text-gray-900"
+              >
+                All Rentings
+              </Link>
             </div>
           </div>
 
