@@ -113,7 +113,7 @@ export default function RentingsPage() {
             </Link>
 
             <Link
-              href="/employee/management"
+              href="/employee#management"
               className="block rounded-xl px-4 py-3 font-medium text-gray-700 transition hover:bg-gray-100"
             >
               Management
