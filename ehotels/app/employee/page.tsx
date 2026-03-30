@@ -15,7 +15,7 @@ const frontDeskLinks = [
   },
   {
     title: "All Rentings",
-    description: "List of all rentings, can record a payment for an existing renting.",
+    description: "List of all rentings, can record a payment for an existing renting.", 
     href: "/employee/rentings",
   },
 ];
