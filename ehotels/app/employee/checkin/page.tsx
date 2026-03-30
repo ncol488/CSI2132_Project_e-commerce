@@ -3,6 +3,8 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 
+//check in desk page
+
 type BookingRow = {
   bookingID: number;
   customerName: string;
@@ -203,16 +205,13 @@ async function handleCheckIn() {
             </Link>
           </nav>
 
-          <div className="border-t border-gray-200 p-4 text-sm text-gray-500">
-            © 2026 e-Hotels Consortium
-          </div>
         </aside>
 
         <section className="flex-1 p-8">
           <header className="mb-6">
             <h2 className="text-4xl font-bold text-gray-900">Front Desk Operations</h2>
             <p className="mt-2 text-gray-600">
-              Check-in guests and manage walk-in rentings
+              Check-in guests, manage walk-in rentings, and view all rentings
             </p>
           </header>
 

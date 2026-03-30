@@ -1,5 +1,7 @@
 import Link from "next/link";
 
+//main employee dashboard page
+
 const frontDeskLinks = [
   {
     title: "Check-In Desk",

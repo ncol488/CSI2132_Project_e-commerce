@@ -126,10 +126,6 @@ export default function RentingsPage() {
               Reports
             </Link>
           </nav>
-
-          <div className="border-t border-gray-200 p-4 text-sm text-gray-500">
-            © 2026 e-Hotels Consortium
-          </div>
         </aside>
 
         <section className="flex-1 p-8">
