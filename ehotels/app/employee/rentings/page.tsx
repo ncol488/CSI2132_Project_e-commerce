@@ -128,7 +128,7 @@ export default function RentingsPage() {
           </nav>
         </aside>
 
-        <section className="flex-1 p-8">
+        <section className="min-w-0 flex-1 p-8">
           <header className="mb-6">
             <h2 className="text-4xl font-bold text-gray-900">Front Desk Operations</h2>
             <p className="mt-2 text-gray-600">
@@ -189,8 +189,8 @@ export default function RentingsPage() {
             <h3 className="mb-4 text-2xl font-bold text-gray-900">Renting Information</h3>
 
             <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
-              <div className="overflow-x-auto">
-                <table className="min-w-full text-left">
+              <div className="w-full overflow-x-auto">
+                <table className="w-full min-w-[1200px] text-left">
                   <thead className="bg-gray-50 text-sm uppercase tracking-wide text-gray-500">
                     <tr>
                       <th className="px-6 py-4 font-semibold">Renting ID</th>
@@ -203,19 +203,20 @@ export default function RentingsPage() {
                       <th className="px-6 py-4 font-semibold">End Date</th>
                       <th className="px-6 py-4 font-semibold">Check-In Time</th>
                       <th className="px-6 py-4 font-semibold">Check-Out Time</th>
+                      <th className="px-6 py-4 font-semibold">Action</th>
                     </tr>
                   </thead>
 
                   <tbody>
                     {loading ? (
                       <tr className="border-t border-gray-200">
-                        <td colSpan={10} className="px-6 py-8 text-center text-gray-500">
+                        <td colSpan={11} className="px-6 py-8 text-center text-gray-500">
                           Loading rentings...
                         </td>
                       </tr>
                     ) : filteredRentings.length === 0 ? (
                       <tr className="border-t border-gray-200">
-                        <td colSpan={10} className="px-6 py-8 text-center text-gray-500">
+                        <td colSpan={11} className="px-6 py-8 text-center text-gray-500">
                           No rentings found.
                         </td>
                       </tr>
@@ -237,6 +238,14 @@ export default function RentingsPage() {
                           <td className="px-6 py-5">{formatDate(row.end_date)}</td>
                           <td className="px-6 py-5">{formatDateTime(row.checkin_datetime)}</td>
                           <td className="px-6 py-5">{formatDateTime(row.checkout_datetime)}</td>
+                          <td className="px-6 py-5">
+                            <Link
+                              href={`/employee/payments?rentingID=${row.rentingid}`}
+                              className="inline-block rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-blue-700"
+                            >
+                              Record Payment
+                            </Link>
+                          </td>
                         </tr>
                       ))
                     )}

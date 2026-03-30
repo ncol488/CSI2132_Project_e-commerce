@@ -14,9 +14,9 @@ const frontDeskLinks = [
     href: "/employee/walkin",
   },
   {
-    title: "Record Payment",
-    description: "Attach and record a payment for an existing renting.",
-    href: "/employee/payments",
+    title: "All Rentings",
+    description: "List of all rentings, can record a payment for an existing renting.",
+    href: "/employee/rentings",
   },
 ];
 
