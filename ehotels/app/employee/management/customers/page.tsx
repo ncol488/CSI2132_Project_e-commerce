@@ -1,5 +1,7 @@
 "use client";
 
+//handle customer changes
+
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 
@@ -7,6 +9,7 @@ type CustomerRow = {
   customerID: number;
   firstName: string;
   lastName: string;
+  email: string;
   street: string;
   city: string;
   province: string;
@@ -18,6 +21,7 @@ type CustomerRow = {
 type CustomerForm = {
   firstName: string;
   lastName: string;
+  email: string;
   street: string;
   city: string;
   province: string;
@@ -29,6 +33,7 @@ type CustomerForm = {
 const emptyForm: CustomerForm = {
   firstName: "",
   lastName: "",
+  email: "",
   street: "",
   city: "",
   province: "",
@@ -83,6 +88,7 @@ export default function CustomerPage() {
       return (
         customer.customerID.toString().includes(q) ||
         fullName.includes(q) ||
+        customer.email.toLowerCase().includes(q) ||
         customer.city.toLowerCase().includes(q) ||
         customer.province.toLowerCase().includes(q) ||
         customer.idValue.toLowerCase().includes(q)
@@ -111,6 +117,7 @@ export default function CustomerPage() {
     setForm({
       firstName: customer.firstName,
       lastName: customer.lastName,
+      email: customer.email,
       street: customer.street,
       city: customer.city,
       province: customer.province,
@@ -216,23 +223,47 @@ export default function CustomerPage() {
           </div>
 
           <nav className="flex-1 space-y-2 p-4">
+
+            <Link
+              href="/employee#management"
+              className="block rounded-xl bg-blue-50 px-4 py-3 font-medium text-blue-700"
+            >
+              Management
+            </Link>
+
             <Link
               href="/customer"
               className="block rounded-xl bg-blue-50 px-4 py-3 font-medium text-blue-700"
             >
               Customers
             </Link>
-
+            
             <Link
-              href="/employee/checkin"
+              href="/employee/management/employees"
               className="block rounded-xl px-4 py-3 font-medium text-gray-700 transition hover:bg-gray-100"
             >
-              Front Desk
+              Employees
             </Link>
+
+            <Link
+              href="/employee/management/hotels"
+              className="block rounded-xl px-4 py-3 font-medium text-gray-700 transition hover:bg-gray-100"
+            >
+              Hotels
+            </Link>
+
+            <Link
+              href="/employee/management/rooms"
+              className="block rounded-xl px-4 py-3 font-medium text-gray-700 transition hover:bg-gray-100"
+            >
+              Rooms
+            </Link>
+
           </nav>
         </aside>
 
-        <section className="flex-1 p-8">
+        <section className="flex-1 p-8 flex justify-center">
+        <div className="w-full max-w-6xl">
           <header className="mb-6">
             <h2 className="text-4xl font-bold text-gray-900">Customer Management</h2>
             <p className="mt-2 text-gray-600">
@@ -289,6 +320,20 @@ export default function CustomerPage() {
                   className="w-full rounded-lg border p-3 text-black placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
               </div>
+
+              <div className="md:col-span-2">
+              <label className="mb-2 block text-sm font-semibold text-gray-700">
+                Email
+              </label>
+              <input
+                type="email"
+                name="email" 
+                value={form.email} 
+                onChange={handleChange}
+                required
+                className="w-full rounded-lg border p-3 text-black placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
 
               <div className="md:col-span-2">
                 <label className="mb-2 block text-sm font-semibold text-gray-700">
@@ -354,10 +399,10 @@ export default function CustomerPage() {
                   className="w-full rounded-lg border p-3 text-black focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
                   <option value="">Select ID type</option>
-                  <option value="Passport">Passport</option>
-                  <option value="Driver License">Driver License</option>
-                  <option value="Health Card">Health Card</option>
+                  <option value="PASSPORT">Passport</option>
+                  <option value="DRIVING_LICENSE">Driver's License</option>
                   <option value="SIN">SIN</option>
+                  <option value="SSN">SSN</option>
                 </select>
               </div>
 
@@ -412,6 +457,7 @@ export default function CustomerPage() {
                   <tr>
                     <th className="px-6 py-4 font-semibold">Customer ID</th>
                     <th className="px-6 py-4 font-semibold">Name</th>
+                    <th className="px-6 py-4 font-semibold">Email</th>
                     <th className="px-6 py-4 font-semibold">City</th>
                     <th className="px-6 py-4 font-semibold">Province</th>
                     <th className="px-6 py-4 font-semibold">ID Type</th>
@@ -443,6 +489,7 @@ export default function CustomerPage() {
                         <td className="px-6 py-5">
                           {customer.firstName} {customer.lastName}
                         </td>
+                        <td className="px-6 py-5">{customer.email}</td>
                         <td className="px-6 py-5">{customer.city}</td>
                         <td className="px-6 py-5">{customer.province}</td>
                         <td className="px-6 py-5">{customer.idType}</td>
@@ -471,6 +518,7 @@ export default function CustomerPage() {
               </table>
             </div>
           </section>
+          </div>
         </section>
       </div>
     </main>

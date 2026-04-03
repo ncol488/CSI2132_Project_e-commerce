@@ -20,6 +20,7 @@ export async function GET(req: NextRequest, { params }: Params) {
         customerid AS "customerID",
         first_name AS "firstName",
         last_name AS "lastName",
+        email,
         street,
         city,
         province,
@@ -58,6 +59,7 @@ export async function PUT(req: NextRequest, { params }: Params) {
     const {
       firstName,
       lastName,
+      email,
       street,
       city,
       province,
@@ -69,6 +71,7 @@ export async function PUT(req: NextRequest, { params }: Params) {
     if (
       !firstName ||
       !lastName ||
+      !email||
       !street ||
       !city ||
       !province ||
@@ -88,18 +91,20 @@ export async function PUT(req: NextRequest, { params }: Params) {
       SET
         first_name = $1,
         last_name = $2,
-        street = $3,
-        city = $4,
-        province = $5,
-        postal_code = $6,
-        id_type = $7,
-        id_value = $8
-      WHERE customerid = $9
+        email = $3,
+        street = $4,
+        city = $5,
+        province = $6,
+        postal_code = $7,
+        id_type = $8,
+        id_value = $9
+      WHERE customerid = $10
       RETURNING customerid AS "customerID";
       `,
       [
         firstName,
         lastName,
+        email,
         street,
         city,
         province,

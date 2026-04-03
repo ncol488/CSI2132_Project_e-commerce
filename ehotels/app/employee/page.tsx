@@ -28,17 +28,17 @@ const managementLinks = [
   },
   {
     title: "Manage Employees",
-    description: "Update employee roles, addresses, and employee records.",
+    description: "Add, edit, delete, and review employee records.",
     href: "/employee/management/employees",
   },
   {
     title: "Manage Hotels",
-    description: "Edit hotel records, chain information, and hotel details.",
+    description: "Add, edit and delete hotel records, chain information, and hotel details.",
     href: "/employee/management/hotels",
   },
   {
     title: "Manage Rooms",
-    description: "Update room price, amenities, availability, and damages/problems.",
+    description: "Add, edit and delete room price, amenities, availability, and damages/problems.",
     href: "/employee/management/rooms",
   },
 ];
