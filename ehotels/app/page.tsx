@@ -34,13 +34,24 @@ export default function LoginPage() {
         return;
       }
 
+      localStorage.setItem("customerID", String(data.user.id));
+      localStorage.setItem(
+        "customerName",
+        `${data.user.firstName} ${data.user.lastName}`,
+      );
+      localStorage.setItem("role", data.role);
+
+      if (data.role === "employee") {
+        localStorage.setItem("employeeID", String(data.user.id));
+        localStorage.setItem("hotelID", String(data.user.hotelId));
+      }
+
       router.push(role === "customer" ? "/customer" : "/employee");
     } catch (err) {
       setError("Something went wrong. Please try again.");
       setLoading(false);
     }
   }
-
   return (
     <main className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
       <div className="w-full max-w-4xl flex bg-white border border-gray-200 rounded-2xl shadow-xl overflow-hidden min-h-[600px]">

@@ -1,7 +1,7 @@
 SET search_path TO ehotels;
 
-
--- to delete everything, use:
+-- Disable trigger before deleting so it doesn't block the last manager removal
+ALTER TABLE ehotels.employee_role DISABLE TRIGGER trg_prevent_last_manager_removal;
 
 DELETE FROM Renting;
 DELETE FROM Booking;
@@ -18,6 +18,9 @@ DELETE FROM Hotel;
 DELETE FROM Amenity;
 DELETE FROM Role;
 DELETE FROM HotelChain;
+
+-- Re-enable trigger before inserting new data
+ALTER TABLE ehotels.employee_role ENABLE TRIGGER trg_prevent_last_manager_removal;
 
 -- data:
 

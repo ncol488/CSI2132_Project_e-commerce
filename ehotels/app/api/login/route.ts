@@ -4,6 +4,7 @@ import db from "@/lib/db";
 export async function POST(request: NextRequest) {
   try {
     const { email, password, role } = await request.json();
+
     if (role === "customer") {
       const res = await db.query(
         "SELECT * FROM ehotels.Customer WHERE email = $1",
@@ -30,6 +31,7 @@ export async function POST(request: NextRequest) {
         "SELECT * FROM ehotels.Employee WHERE email = $1",
         [email],
       );
+
       if (res.rows.length > 0) {
         const user = res.rows[0];
         return NextResponse.json({
@@ -45,6 +47,7 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // If neither block returned, credentials were wrong
     return NextResponse.json(
       { error: "Invalid ID or Role. Please check your credentials." },
       { status: 401 },

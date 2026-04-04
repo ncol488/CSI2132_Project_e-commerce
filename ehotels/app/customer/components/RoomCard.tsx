@@ -9,18 +9,36 @@ export default function RoomCard({
   room: Room;
   onBook: (room: Room) => void;
 }) {
+  const isUnavailable = room.is_available === false;
+
   return (
-    <div className="bg-white border border-gray-100 rounded-2xl shadow-sm hover:shadow-md transition-shadow p-5 flex flex-col gap-3">
+    <div
+      className={`relative bg-white border rounded-2xl shadow-sm transition-all p-5 flex flex-col gap-3 ${
+        isUnavailable
+          ? "opacity-60 grayscale-[0.3] border-gray-100"
+          : "border-gray-100 hover:shadow-md hover:border-blue-100"
+      }`}
+    >
+      {isUnavailable && (
+        <div className="absolute top-3 right-3 z-10">
+          <span className="bg-amber-50 text-amber-700 text-[10px] font-bold px-2 py-1 rounded-md uppercase tracking-wider border border-amber-100 shadow-sm">
+            Reserved
+          </span>
+        </div>
+      )}
+
       <div className="flex justify-between items-start">
-        <div>
+        <div className="pr-16">
           <h3 className="font-semibold text-gray-900 text-base leading-tight">
             {room.hotel_name}
           </h3>
           <p className="text-xs text-gray-400 mt-0.5">{room.chain_name}</p>
         </div>
-        <span className="text-xs font-medium bg-blue-50 text-blue-700 px-2 py-1 rounded-full">
-          {"★".repeat(room.category)}
-        </span>
+        {!isUnavailable && (
+          <span className="text-xs font-medium bg-blue-50 text-blue-700 px-2 py-1 rounded-full">
+            {"★".repeat(room.category)}
+          </span>
+        )}
       </div>
 
       <div className="flex gap-2 flex-wrap text-xs text-gray-500">
@@ -48,24 +66,9 @@ export default function RoomCard({
         </span>
         <span>·</span>
         <span>{room.capacity}</span>
-        {room.has_sea_view && (
-          <>
-            <span>·</span>
-            <span>🌊 Sea View</span>
-          </>
-        )}
-        {room.has_mountain_view && (
-          <>
-            <span>·</span>
-            <span>⛰ Mountain View</span>
-          </>
-        )}
-        {room.is_extendable && (
-          <>
-            <span>·</span>
-            <span>Extendable</span>
-          </>
-        )}
+        {room.has_sea_view && <span>· 🌊 Sea View</span>}
+        {room.has_mountain_view && <span>· ⛰ Mountain View</span>}
+        {room.is_extendable && <span>· Extendable</span>}
       </div>
 
       {room.amenities && room.amenities.length > 0 && (
@@ -85,17 +88,22 @@ export default function RoomCard({
           )}
         </div>
       )}
-
       <div className="flex justify-between items-center mt-auto pt-2 border-t border-gray-50">
         <div>
           <span className="text-xl font-bold text-gray-900">${room.price}</span>
           <span className="text-xs text-gray-400 ml-1">/ night</span>
         </div>
+
         <button
+          disabled={isUnavailable}
           onClick={() => onBook(room)}
-          className="bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium px-4 py-2 rounded-xl transition-colors"
+          className={`text-sm font-medium px-4 py-2 rounded-xl transition-all ${
+            isUnavailable
+              ? "bg-gray-100 text-gray-400 cursor-not-allowed"
+              : "bg-blue-600 text-white hover:bg-blue-700 active:scale-95"
+          }`}
         >
-          Book Now
+          {isUnavailable ? "Reserved" : "Book Now"}
         </button>
       </div>
     </div>

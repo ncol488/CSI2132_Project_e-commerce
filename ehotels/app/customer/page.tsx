@@ -8,13 +8,8 @@ import RoomCard from "./components/RoomCard";
 import BookingModal from "./components/BookingModal";
 
 export default function CustomerPage() {
+  const [customerID, setCustomerID] = useState<number | null>(null);
   const router = useRouter();
-  const [mounted, setMounted] = useState(false);
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
-
   const [checkIn, setCheckIn] = useState("");
   const [checkOut, setCheckOut] = useState("");
   const [area, setArea] = useState("");
@@ -28,11 +23,21 @@ export default function CustomerPage() {
   const [loading, setLoading] = useState(false);
   const [searched, setSearched] = useState(false);
   const [searchError, setSearchError] = useState("");
+  const [showingAll, setShowingAll] = useState(false);
 
   const [bookingRoom, setBookingRoom] = useState<Room | null>(null);
   const [bookingLoading, setBookingLoading] = useState(false);
   const [bookingSuccess, setBookingSuccess] = useState(false);
   const [bookingError, setBookingError] = useState("");
+
+  useEffect(() => {
+    const stored = localStorage.getItem("customerID");
+    if (!stored) {
+      router.push("/");
+      return;
+    }
+    setCustomerID(parseInt(stored));
+  }, []);
 
   const toggleStar = (s: number) =>
     setStars((prev) =>
@@ -51,6 +56,7 @@ export default function CustomerPage() {
     setSearchError("");
     setLoading(true);
     setSearched(true);
+    setShowingAll(false);
 
     try {
       const params = new URLSearchParams({
@@ -81,7 +87,38 @@ export default function CustomerPage() {
     }
   };
 
-  const handleBook = async () => {
+  // Show all rooms with no filters — no dates required
+  const handleShowAll = async () => {
+    setSearchError("");
+    setLoading(true);
+    setSearched(true);
+    setShowingAll(true);
+
+    try {
+      const res = await fetch("/api/rooms?showAll=true");
+      const data = await res.json();
+
+      if (!res.ok) {
+        setSearchError(data.error || "Failed to fetch rooms.");
+        setRooms([]);
+      } else {
+        setRooms(data.rooms || []);
+      }
+    } catch {
+      setSearchError("Something went wrong. Please try again.");
+      setRooms([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+  const handleBook = async (details: {
+    fullName: string;
+    address: string;
+    idType: string;
+    idNumber: string;
+    checkIn: string;
+    checkOut: string;
+  }) => {
     if (!bookingRoom) return;
     setBookingLoading(true);
     setBookingError("");
@@ -91,12 +128,19 @@ export default function CustomerPage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          room_id: bookingRoom.room_id,
-          check_in: checkIn,
-          check_out: checkOut,
+          customerID: customerID,
+          room_number: bookingRoom.room_id,
+          hotelID: bookingRoom.hotel_id,
+          checkIn: details.checkIn,
+          checkOut: details.checkOut,
+          fullName: details.fullName,
+          idType: details.idType,
+          idNumber: details.idNumber,
         }),
       });
+
       const data = await res.json();
+
       if (!res.ok) {
         setBookingError(data.error || "Booking failed.");
       } else {
@@ -110,10 +154,12 @@ export default function CustomerPage() {
   };
 
   const closeModal = () => {
+    if (bookingSuccess) {
+      router.push("/customer/bookings");
+    }
     setBookingRoom(null);
     setBookingSuccess(false);
     setBookingError("");
-    if (bookingSuccess) handleSearch();
   };
 
   return (
@@ -121,7 +167,6 @@ export default function CustomerPage() {
       className="min-h-screen bg-gray-50 flex"
       style={{ fontFamily: "'DM Sans', sans-serif" }}
     >
-      {/* ── Sidebar ── */}
       <aside className="w-64 min-h-screen bg-white border-r border-gray-100 flex flex-col shrink-0">
         <div className="p-5 border-b border-gray-100">
           <div className="flex items-center gap-2.5">
@@ -163,7 +208,7 @@ export default function CustomerPage() {
           </div>
         </div>
 
-        <nav className="px-3 pt-4 flex-1">
+        <nav className="px-3 pt-4 flex-1 space-y-1">
           <button className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl bg-blue-50 text-blue-700 text-sm font-medium">
             <svg
               className="w-4 h-4"
@@ -180,6 +225,25 @@ export default function CustomerPage() {
             </svg>
             Search &amp; Book
           </button>
+          <button
+            onClick={() => router.push("/customer/bookings")}
+            className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-gray-500 hover:bg-gray-50 text-sm font-medium transition-colors"
+          >
+            <svg
+              className="w-4 h-4"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
+              />
+            </svg>
+            My Bookings
+          </button>
         </nav>
 
         <div className="p-4 border-t border-gray-100">
@@ -189,7 +253,6 @@ export default function CustomerPage() {
 
       {/* ── Main ── */}
       <main className="flex-1 flex flex-col">
-        {/* Hero */}
         <div
           className="px-10 pt-14 pb-20 text-center"
           style={{
@@ -290,6 +353,7 @@ export default function CustomerPage() {
                 />
               </div>
             </div>
+
             <div className="grid grid-cols-3 gap-4 mb-4">
               <div>
                 <label className="flex items-center gap-1.5 text-xs font-medium text-gray-500 mb-1.5">
@@ -458,26 +522,50 @@ export default function CustomerPage() {
               </p>
             )}
 
-            <button
-              onClick={handleSearch}
-              disabled={loading}
-              className="w-full flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3.5 rounded-xl transition-colors disabled:opacity-60 disabled:cursor-not-allowed text-sm"
-            >
-              <svg
-                className="w-4 h-4"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
+            {/* ── Action buttons ── */}
+            <div className="flex gap-3" suppressHydrationWarning>
+              <button
+                onClick={handleShowAll}
+                disabled={loading}
+                className="flex items-center justify-center gap-2 border border-blue-600 text-blue-600 hover:bg-blue-50 font-semibold py-3.5 px-5 rounded-xl transition-colors disabled:opacity-60 disabled:cursor-not-allowed text-sm whitespace-nowrap"
               >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-                />
-              </svg>
-              {loading ? "Searching..." : "Search Available Rooms"}
-            </button>
+                <svg
+                  className="w-4 h-4"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M4 6h16M4 10h16M4 14h16M4 18h16"
+                  />
+                </svg>
+                Show All Rooms
+              </button>
+
+              <button
+                onClick={handleSearch}
+                disabled={loading}
+                className="flex-1 flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3.5 rounded-xl transition-colors disabled:opacity-60 disabled:cursor-not-allowed text-sm"
+              >
+                <svg
+                  className="w-4 h-4"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                  />
+                </svg>
+                {loading ? "Searching..." : "Search Available Rooms"}
+              </button>
+            </div>
           </div>
         </div>
 
@@ -517,7 +605,9 @@ export default function CustomerPage() {
             <>
               <div className="flex items-center justify-between mb-5">
                 <h2 className="text-base font-semibold text-gray-800">
-                  {rooms.length} room{rooms.length !== 1 ? "s" : ""} available
+                  {showingAll
+                    ? `All ${rooms.length} room${rooms.length !== 1 ? "s" : ""} in the system`
+                    : `${rooms.length} room${rooms.length !== 1 ? "s" : ""} available`}
                 </h2>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">

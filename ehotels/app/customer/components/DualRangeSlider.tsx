@@ -1,7 +1,6 @@
 "use client";
 
 import { useRef } from "react";
-
 export default function DualRangeSlider({
   min,
   max,
