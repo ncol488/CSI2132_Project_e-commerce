@@ -20,7 +20,7 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
-      const res = await fetch("/api/auth/login", {
+      const res = await fetch("/api/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, password, role }),
@@ -34,13 +34,24 @@ export default function LoginPage() {
         return;
       }
 
+      localStorage.setItem("customerID", String(data.user.id));
+      localStorage.setItem(
+        "customerName",
+        `${data.user.firstName} ${data.user.lastName}`,
+      );
+      localStorage.setItem("role", data.role);
+
+      if (data.role === "employee") {
+        localStorage.setItem("employeeID", String(data.user.id));
+        localStorage.setItem("hotelID", String(data.user.hotelId));
+      }
+
       router.push(role === "customer" ? "/customer" : "/employee");
     } catch (err) {
       setError("Something went wrong. Please try again.");
       setLoading(false);
     }
   }
-
   return (
     <main className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
       <div className="w-full max-w-4xl flex bg-white border border-gray-200 rounded-2xl shadow-xl overflow-hidden min-h-[600px]">
@@ -102,21 +113,23 @@ export default function LoginPage() {
               </div>
             </div>
 
-            {/* Email */}
+            {/* Email / ID Field */}
             <div>
               <label
                 htmlFor="email"
                 className="block text-xs font-medium text-gray-500 mb-1 uppercase tracking-wide"
               >
-                Email
+                {role === "customer" ? "Customer ID / SIN" : "Employee ID"}
               </label>
               <input
                 id="email"
-                type="email"
+                type="text"
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="you@example.com"
+                placeholder={
+                  role === "customer" ? "e.g. 123456789" : "e.g. EMP10001"
+                }
                 className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent transition"
               />
             </div>
