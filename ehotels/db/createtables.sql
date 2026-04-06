@@ -1,107 +1,214 @@
 SET search_path TO ehotels;
 
--- 1. RESET
-TRUNCATE TABLE HotelChain, Role, Amenity, Customer, Hotel, Room, Employee
-  RESTART IDENTITY CASCADE;
+SHOW search_path;
 
--- 2. Roles (must exist before Employee_Role)
-INSERT INTO Role (role_name) VALUES
-  ('Manager'),
-  ('Receptionist'),
-  ('Housekeeper');
+-- NOTE: tables have been altered, to change add:
 
--- 3. Amenities (must exist before Room_Amenity)
-INSERT INTO Amenity (amenityID, name) VALUES
-  (1, 'TV'),
-  (2, 'Air Conditioning'),
-  (3, 'Fridge'),
-  (4, 'WiFi');
+ALTER TABLE HotelChain ADD COLUMN chain_name VARCHAR(150);
+ALTER TABLE Hotel ADD COLUMN hotel_name VARCHAR(150);
+ALTER TABLE Customer ADD COLUMN email VARCHAR(150);
+ALTER TABLE Employee ADD COLUMN email VARCHAR(150);
 
--- 4. Hotel Chain
-INSERT INTO HotelChain (chainID, chain_name, central_office_address)
-VALUES (1, 'Star Gold Hotels', '62 Elm Street, Vancouver, BC, V5K 8P5');
+ALTER TABLE HotelChain ALTER COLUMN chain_name SET NOT NULL;
+ALTER TABLE Hotel ALTER COLUMN hotel_name SET NOT NULL;
 
--- 5. Hotel
-INSERT INTO Hotel (hotelID, hotel_name, street, city, province, postal_code, category, chainID)
-VALUES (1, 'Star Gold Ottawa Central', '200 Wellington St', 'Ottawa', 'ON', 'K1A0A1', 4, 1);
+-- to check
+SELECT table_schema, table_name
+FROM information_schema.tables
+WHERE table_name = 'HotelChain';
 
--- 6. Customers (id_type + id_value now included)
-INSERT INTO Customer (
-  customerID, first_name, last_name, street, city, province, postal_code,
-  registration_date, email, id_type, id_value
-)
-VALUES
-  (101, 'Hannah', 'Smith', '12 Rideau St', 'Ottawa', 'ON', 'K1N5X8',
-   '2026-03-20', 'hannah@smith.com', 'SIN', 'SIN-101-HANNAH'),
-  (102, 'Customer', 'Dummy', '123 Fake St', 'Ottawa', 'ON', 'K1P5M7',
-   '2026-04-02', 'customer@customer.com', 'SIN', 'SIN-102-DUMMY');
+SELECT * FROM Hotel;
 
--- 7. Employee
-INSERT INTO Employee (
-  employeeID, first_name, last_name, street, city, province,
-  postal_code, ssn_sin, hotelID, email
-)
-VALUES
-  (1, 'Alice', 'Brown', '55 Elgin St', 'Ottawa', 'ON',
-   'K2P1L5', 'EMP-001', 1, 'alice@restly.com');
+-- HotelChain first, must keep in mind order of creation so that each table is created only after everything it depends on exists 
 
--- 8. Rooms
-INSERT INTO Room (room_number, hotelID, price, capacity, view_type, extendable, problems_damages)
-VALUES
-  (101, 1, 149.99, 1, 'none',     FALSE, NULL),
-  (102, 1, 189.99, 2, 'mountain', TRUE,  NULL);
+CREATE TABLE HotelChain (
+    chainID INT PRIMARY KEY,
+    central_office_address TEXT NOT NULL
+);
+    
+-- Role, since the Employee Role depends on Role, Role must exist first.
 
--- 9. Relationship tables
-INSERT INTO Chain_Email  (chainID, email)        VALUES (1, 'info@stargoldhotels.com');
-INSERT INTO Chain_Phone  (chainID, phone_number) VALUES (1, '613-555-1000');
-INSERT INTO Hotel_Email  (hotelID, email)        VALUES (1, 'ottawa@stargoldhotels.com');
-INSERT INTO Hotel_Phone  (hotelID, phone_number) VALUES (1, '613-555-2000');
-
--- 10. Employee Role (Role 'Manager' must already exist — inserted in step 2)
-INSERT INTO Employee_Role (employeeID, role_name) VALUES (1, 'Manager');
-
--- 11. Room Amenities (Amenities 1-4 must already exist — inserted in step 3)
-INSERT INTO Room_Amenity (room_number, hotelID, amenityID)
-VALUES
-  (101, 1, 1), (101, 1, 2),
-  (102, 1, 1), (102, 1, 2), (102, 1, 3), (102, 1, 4);
-
--- 12. Booking
-INSERT INTO Booking (
-  bookingID, start_date, end_date, status,
-  customerID, room_number, hotelID,
-  customer_name_snapshot, customer_id_snapshot,
-  room_snapshot, hotel_snapshot, chain_name_snapshot
-)
-VALUES (
-  1, '2026-04-10', '2026-04-14', 'confirmed',
-  101, 102, 1,
-  'Hannah Smith',
-  'SIN: SIN-101-HANNAH',
-  'Room 102, capacity 2, mountain view, extendable',
-  '200 Wellington St, Ottawa, ON, K1A0A1, category 4',
-  'Star Gold Hotels'
+CREATE TABLE Role (
+	role_name VARCHAR(50) PRIMARY KEY
 );
 
--- 13. Renting
-INSERT INTO Renting (
-  rentingID, start_date, end_date,
-  checkin_datetime, checkout_datetime,
-  customerID, room_number, hotelID, employeeID, bookingID,
-  customer_name_snapshot, customer_id_snapshot,
-  room_snapshot, hotel_snapshot, chain_name_snapshot
-)
-VALUES (
-  1, '2026-04-10', '2026-04-14',
-  '2026-04-10 15:00:00', NULL,
-  101, 102, 1, 1, 1,
-  'Hannah Smith',
-  'SIN: SIN-101-HANNAH',
-  'Room 102, capacity 2, mountain view, extendable',
-  '200 Wellington St, Ottawa, ON, K1A0A1, category 4',
-  'Star Gold Hotels'
+-- Amenity
+
+CREATE TABLE Amenity (
+    amenityID INT PRIMARY KEY,
+    name VARCHAR(100) NOT NULL UNIQUE
 );
 
--- Verify
-SELECT * FROM Booking;
-SELECT * FROM Renting;
+-- Hotel
+
+CREATE TABLE Hotel (
+    hotelID INT PRIMARY KEY,
+    street VARCHAR(150) NOT NULL,
+    city VARCHAR(50) NOT NULL,
+    province VARCHAR(50) NOT NULL,
+    postal_code VARCHAR(30) NOT NULL,
+    category INT NOT NULL CHECK (category BETWEEN 1 AND 5),
+    chainID INT NOT NULL,
+    FOREIGN KEY (chainID) REFERENCES HotelChain(chainID)
+);
+
+-- Customer
+
+CREATE TABLE Customer (
+    customerID INT PRIMARY KEY,
+    first_name VARCHAR(150) NOT NULL,
+    last_name VARCHAR(150) NOT NULL,
+    street VARCHAR(150) NOT NULL,
+    city VARCHAR(50) NOT NULL,
+    province VARCHAR(50) NOT NULL,
+    postal_code VARCHAR(30) NOT NULL,
+    id_type VARCHAR(30) NOT NULL
+        CHECK (id_type IN ('SSN', 'SIN', 'DRIVING_LICENSE', 'PASSPORT')),
+    id_value VARCHAR(150) NOT NULL,
+    registration_date DATE NOT NULL
+);
+
+-- Room
+
+CREATE TABLE Room (
+    room_number INT NOT NULL,
+    hotelID INT NOT NULL,
+    price NUMERIC(15,2) NOT NULL CHECK (price > 0),
+    capacity INT NOT NULL CHECK (capacity > 0),
+    view_type VARCHAR(50) NOT NULL CHECK (view_type IN ('sea', 'mountain', 'none')),
+    extendable BOOLEAN NOT NULL,
+    problems_damages TEXT,
+    PRIMARY KEY (room_number, hotelID),
+    FOREIGN KEY (hotelID) REFERENCES Hotel(hotelID)
+);
+
+-- EMployee
+
+CREATE TABLE Employee (
+    employeeID INT PRIMARY KEY,
+    first_name VARCHAR(50) NOT NULL,
+    last_name VARCHAR(50) NOT NULL,
+    street VARCHAR(100) NOT NULL,
+    city VARCHAR(50) NOT NULL,
+    province VARCHAR(50) NOT NULL,
+    postal_code VARCHAR(20) NOT NULL,
+    ssn_sin VARCHAR(30) NOT NULL UNIQUE,
+    hotelID INT NOT NULL,
+    FOREIGN KEY (hotelID) REFERENCES Hotel(hotelID)
+);
+
+-- chain email
+
+CREATE TABLE Chain_Email (
+    chainID INT NOT NULL,
+    email VARCHAR(100) NOT NULL,
+    PRIMARY KEY (chainID, email),
+    FOREIGN KEY (chainID) REFERENCES HotelChain(chainID)
+);
+
+-- chain phone
+
+CREATE TABLE Chain_Phone (
+    chainID INT NOT NULL,
+    phone_number VARCHAR(50) NOT NULL,
+    PRIMARY KEY (chainID, phone_number),
+    FOREIGN KEY (chainID) REFERENCES HotelChain(chainID)
+);
+
+-- hotel email
+
+CREATE TABLE Hotel_Email (
+    hotelID INT NOT NULL,
+    email VARCHAR(100) NOT NULL,
+    PRIMARY KEY (hotelID, email),
+    FOREIGN KEY (hotelID) REFERENCES Hotel(hotelID)
+);
+
+-- hotel phone
+
+CREATE TABLE Hotel_Phone (
+    hotelID INT NOT NULL,
+    phone_number VARCHAR(50) NOT NULL,
+    PRIMARY KEY (hotelID, phone_number),
+    FOREIGN KEY (hotelID) REFERENCES Hotel(hotelID)
+);
+
+-- employee role
+
+CREATE TABLE Employee_Role (
+    employeeID INT NOT NULL,
+    role_name VARCHAR(50) NOT NULL,
+    PRIMARY KEY (employeeID, role_name),
+    FOREIGN KEY (employeeID) REFERENCES Employee(employeeID),
+    FOREIGN KEY (role_name) REFERENCES Role(role_name)
+);
+
+-- room amenity
+
+CREATE TABLE Room_Amenity (
+    room_number INT NOT NULL,
+    hotelID INT NOT NULL,
+    amenityID INT NOT NULL,
+    PRIMARY KEY (room_number, hotelID, amenityID),
+    FOREIGN KEY (room_number, hotelID) REFERENCES Room(room_number, hotelID),
+    FOREIGN KEY (amenityID) REFERENCES Amenity(amenityID)
+);
+
+-- booking
+
+CREATE TABLE Booking (
+    bookingID INT PRIMARY KEY,
+    start_date DATE NOT NULL,
+    end_date DATE NOT NULL,
+    status VARCHAR(20) NOT NULL CHECK (status IN ('pending', 'confirmed', 'cancelled')),
+    customerID INT,
+    room_number INT,
+    hotelID INT,
+    customer_name_snapshot VARCHAR(120) NOT NULL,
+    customer_id_snapshot VARCHAR(80) NOT NULL,
+    room_snapshot TEXT NOT NULL,
+    hotel_snapshot TEXT NOT NULL,
+    chain_name_snapshot VARCHAR(120) NOT NULL,
+    CHECK (start_date < end_date),
+    FOREIGN KEY (customerID) REFERENCES Customer(customerID),
+    FOREIGN KEY (room_number, hotelID) REFERENCES Room(room_number, hotelID)
+);
+
+
+-- renting (last because it depends on Customer, Room, Employee, and optionally Booking)
+
+CREATE TABLE Renting (
+    rentingID INT PRIMARY KEY,
+    start_date DATE NOT NULL,
+    end_date DATE NOT NULL,
+    checkin_datetime TIMESTAMP NOT NULL,
+    checkout_datetime TIMESTAMP,
+    customerID INT,
+    room_number INT,
+    hotelID INT,
+    employeeID INT,
+    bookingID INT,
+    customer_name_snapshot VARCHAR(120) NOT NULL,
+    customer_id_snapshot VARCHAR(80) NOT NULL,
+    room_snapshot TEXT NOT NULL,
+    hotel_snapshot TEXT NOT NULL,
+    chain_name_snapshot VARCHAR(120) NOT NULL,
+    CHECK (start_date < end_date),
+    CHECK (checkout_datetime IS NULL OR checkin_datetime < checkout_datetime),
+    FOREIGN KEY (customerID) REFERENCES Customer(customerID),
+    FOREIGN KEY (room_number, hotelID) REFERENCES Room(room_number, hotelID),
+    FOREIGN KEY (employeeID) REFERENCES Employee(employeeID),
+    FOREIGN KEY (bookingID) REFERENCES Booking(bookingID)
+);
+
+
+-- NEW ADDED TABLE to be able to SAVE payment records + associate it to a renting!!
+
+CREATE TABLE Payment (
+    paymentID INT PRIMARY KEY,
+    rentingID INT NOT NULL,
+    amount NUMERIC(10,2) NOT NULL CHECK (amount >= 0),
+    payment_date DATE NOT NULL,
+    payment_method VARCHAR(50) NOT NULL,
+    FOREIGN KEY (rentingID) REFERENCES Renting(rentingID)
+);
