@@ -30,7 +30,7 @@ export async function GET(req: NextRequest, { params }: Params) {
           ARRAY_AGG(DISTINCT a.name) FILTER (WHERE a.name IS NOT NULL),
           '{}'
         ) AS "amenities",
-        CASE
+       CASE
           WHEN EXISTS (
             SELECT 1
             FROM ehotels.booking b
@@ -45,9 +45,9 @@ export async function GET(req: NextRequest, { params }: Params) {
               AND rt.room_number = r.room_number
               AND rt.checkout_datetime IS NULL
           )
-          THEN 'Occupied / Booked'
-          ELSE 'Available'
-        END AS "availability"
+          THEN false -- No quotes! This is a boolean
+          ELSE true  -- No quotes! This is a boolean
+        END AS "is_available"
       FROM ehotels.room r
       JOIN ehotels.hotel h
         ON r.hotelid = h.hotelid
@@ -69,14 +69,11 @@ export async function GET(req: NextRequest, { params }: Params) {
         r.extendable,
         r.problems_damages
       `,
-      [hotelID, roomNumber]
+      [hotelID, roomNumber],
     );
 
     if (result.rows.length === 0) {
-      return NextResponse.json(
-        { error: "Room not found." },
-        { status: 404 }
-      );
+      return NextResponse.json({ error: "Room not found." }, { status: 404 });
     }
 
     return NextResponse.json(result.rows[0]);
@@ -84,7 +81,7 @@ export async function GET(req: NextRequest, { params }: Params) {
     console.error("GET /api/rooms/[hotelID]/[roomNumber] error:", error);
     return NextResponse.json(
       { error: "Failed to load room." },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
@@ -114,15 +111,12 @@ export async function PUT(req: NextRequest, { params }: Params) {
       WHERE hotelid = $1
         AND room_number = $2
       `,
-      [hotelID, roomNumber]
+      [hotelID, roomNumber],
     );
 
     if (roomCheck.rows.length === 0) {
       await client.query("ROLLBACK");
-      return NextResponse.json(
-        { error: "Room not found." },
-        { status: 404 }
-      );
+      return NextResponse.json({ error: "Room not found." }, { status: 404 });
     }
 
     await client.query(
@@ -144,7 +138,7 @@ export async function PUT(req: NextRequest, { params }: Params) {
         problemsDamages || null,
         hotelID,
         roomNumber,
-      ]
+      ],
     );
 
     // replace amenities
@@ -154,7 +148,7 @@ export async function PUT(req: NextRequest, { params }: Params) {
       WHERE hotelid = $1
         AND room_number = $2
       `,
-      [hotelID, roomNumber]
+      [hotelID, roomNumber],
     );
 
     if (Array.isArray(amenities) && amenities.length > 0) {
@@ -168,7 +162,7 @@ export async function PUT(req: NextRequest, { params }: Params) {
           FROM ehotels.amenity
           WHERE LOWER(name) = LOWER($1)
           `,
-          [trimmed]
+          [trimmed],
         );
 
         // skip names that don't exist in Amenity table
@@ -181,7 +175,7 @@ export async function PUT(req: NextRequest, { params }: Params) {
           INSERT INTO ehotels.room_amenity (room_number, hotelid, amenityid)
           VALUES ($1, $2, $3)
           `,
-          [roomNumber, hotelID, amenityID]
+          [roomNumber, hotelID, amenityID],
         );
       }
     }
@@ -194,7 +188,7 @@ export async function PUT(req: NextRequest, { params }: Params) {
     console.error("PUT /api/rooms/[hotelID]/[roomNumber] error:", error);
     return NextResponse.json(
       { error: "Failed to update room." },
-      { status: 500 }
+      { status: 500 },
     );
   } finally {
     client.release();
@@ -216,15 +210,12 @@ export async function DELETE(req: NextRequest, { params }: Params) {
       WHERE hotelid = $1
         AND room_number = $2
       `,
-      [hotelID, roomNumber]
+      [hotelID, roomNumber],
     );
 
     if (roomCheck.rows.length === 0) {
       await client.query("ROLLBACK");
-      return NextResponse.json(
-        { error: "Room not found." },
-        { status: 404 }
-      );
+      return NextResponse.json({ error: "Room not found." }, { status: 404 });
     }
 
     // block delete if room is used in bookings
@@ -236,7 +227,7 @@ export async function DELETE(req: NextRequest, { params }: Params) {
         AND room_number = $2
       LIMIT 1
       `,
-      [hotelID, roomNumber]
+      [hotelID, roomNumber],
     );
 
     if (bookingCheck.rows.length > 0) {
@@ -246,7 +237,7 @@ export async function DELETE(req: NextRequest, { params }: Params) {
           error:
             "Cannot delete this room because it is linked to one or more bookings.",
         },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -259,7 +250,7 @@ export async function DELETE(req: NextRequest, { params }: Params) {
         AND room_number = $2
       LIMIT 1
       `,
-      [hotelID, roomNumber]
+      [hotelID, roomNumber],
     );
 
     if (rentingCheck.rows.length > 0) {
@@ -269,7 +260,7 @@ export async function DELETE(req: NextRequest, { params }: Params) {
           error:
             "Cannot delete this room because it is linked to one or more rentings.",
         },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -280,7 +271,7 @@ export async function DELETE(req: NextRequest, { params }: Params) {
       WHERE hotelid = $1
         AND room_number = $2
       `,
-      [hotelID, roomNumber]
+      [hotelID, roomNumber],
     );
 
     // then delete room
@@ -290,7 +281,7 @@ export async function DELETE(req: NextRequest, { params }: Params) {
       WHERE hotelid = $1
         AND room_number = $2
       `,
-      [hotelID, roomNumber]
+      [hotelID, roomNumber],
     );
 
     await client.query("COMMIT");
@@ -308,7 +299,7 @@ export async function DELETE(req: NextRequest, { params }: Params) {
         error:
           "Failed to delete room. It may still be linked to bookings or rentings.",
       },
-      { status: 500 }
+      { status: 500 },
     );
   } finally {
     client.release();

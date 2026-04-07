@@ -5,7 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import Sidebar from "@/app/components/sidebar";
 
 type BookingRow = {
-  bookingid: number;
+  bookingID: number;
   customer_name_snapshot: string;
   room_number: number | null;
   start_date: string;
@@ -14,7 +14,7 @@ type BookingRow = {
 };
 
 type BookingDetails = {
-  bookingid: number;
+  bookingID: number;
   customerid: number;
   hotelid: number;
   room_number: number;
@@ -58,7 +58,6 @@ export default function CheckInPage() {
   } | null>(null);
   const [loadingTable, setLoadingTable] = useState(true);
   const [loadingBookingId, setLoadingBookingId] = useState<number | null>(null);
-
   // Load Bookings on Mount
   useEffect(() => {
     async function fetchBookings() {
@@ -89,7 +88,7 @@ export default function CheckInPage() {
     if (!q) return bookingRows;
     return bookingRows.filter(
       (row) =>
-        formatBookingId(row.bookingid).toLowerCase().includes(q) ||
+        formatBookingId(row.bookingID).toLowerCase().includes(q) ||
         row.customer_name_snapshot?.toLowerCase().includes(q) ||
         (row.room_number?.toString() ?? "").includes(q),
     );
@@ -103,6 +102,7 @@ export default function CheckInPage() {
       // Note: You must have an API route at /api/bookings/[id]/route.ts for this to work
       const response = await fetch(`/api/bookings/${bookingID}`);
       const data = await response.json();
+      console.log("booking details response:", data);
       if (!response.ok) {
         setSelectedBooking(null);
         setMessage({
@@ -125,7 +125,7 @@ export default function CheckInPage() {
     setMessage(null);
     try {
       const response = await fetch(
-        `/api/checkin/${selectedBooking.bookingid}`,
+        `/api/bookings/${selectedBooking.bookingID}/checkin`,
         { method: "POST" },
       );
       const data = await response.json();
@@ -245,11 +245,11 @@ export default function CheckInPage() {
                 ) : (
                   filteredRows.map((row) => (
                     <tr
-                      key={row.bookingid}
+                      key={row.bookingID}
                       className="hover:bg-gray-50 transition"
                     >
                       <td className="px-6 py-4 font-mono font-bold text-blue-600">
-                        {formatBookingId(row.bookingid)}
+                        {formatBookingId(row.bookingID)}
                       </td>
                       <td className="px-6 py-4 font-semibold text-gray-900">
                         {row.customer_name_snapshot}
@@ -270,11 +270,11 @@ export default function CheckInPage() {
                       </td>
                       <td className="px-6 py-4">
                         <button
-                          onClick={() => handleViewDetails(row.bookingid)}
-                          disabled={loadingBookingId === row.bookingid}
+                          onClick={() => handleViewDetails(row.bookingID)}
+                          disabled={loadingBookingId === row.bookingID}
                           className="rounded-lg border border-gray-200 bg-white px-4 py-2 text-xs font-bold text-gray-700 shadow-sm hover:bg-gray-50 disabled:opacity-50"
                         >
-                          {loadingBookingId === row.bookingid
+                          {loadingBookingId === row.bookingID
                             ? "..."
                             : "Details"}
                         </button>
@@ -295,61 +295,97 @@ export default function CheckInPage() {
           )}
 
           {selectedBooking && (
-            <div className="mt-8 rounded-xl border border-gray-200 bg-white p-8 shadow-md">
-              <div className="mb-6 flex items-center justify-between">
-                <h3 className="text-xl font-bold text-gray-900">
-                  Check-In Confirmation
-                </h3>
-                <span className="font-mono text-xs font-bold text-blue-600 bg-blue-50 px-3 py-1 rounded-full">
-                  {formatBookingId(selectedBooking.bookingid)}
+            <div className="mt-8 rounded-2xl border border-slate-200 bg-white p-8 shadow-xl">
+              <div className="mb-8 flex items-center justify-between border-b border-slate-100 pb-6">
+                <div>
+                  <h3 className="text-xl font-extrabold text-slate-900 tracking-tight">
+                    Check-In Confirmation
+                  </h3>
+                  <p className="text-sm text-slate-500">
+                    Verify guest credentials before proceeding
+                  </p>
+                </div>
+                <span className="font-mono text-xs font-bold text-indigo-600 bg-indigo-50 px-4 py-1.5 rounded-lg border border-indigo-100">
+                  REF: {formatBookingId(selectedBooking.bookingID)}
                 </span>
               </div>
+
               <div className="grid gap-8 md:grid-cols-2">
+                {/* --- Guest Details Section --- */}
                 <div className="space-y-4">
-                  <h4 className="text-[10px] font-bold uppercase text-gray-400">
-                    Stay Information
+                  <h4 className="text-[11px] font-black uppercase tracking-widest text-slate-400">
+                    Guest Identification
                   </h4>
-                  <div className="rounded-xl border border-gray-100 bg-gray-50/50 p-4 space-y-2 text-sm">
-                    <p>
-                      <span className="font-bold text-gray-900">Guest:</span>{" "}
-                      {selectedBooking.customer_name_snapshot}
+                  <div className="rounded-xl border border-slate-100 bg-slate-50/50 p-5 space-y-3 text-sm">
+                    <p className="flex justify-between">
+                      <span className="font-medium text-slate-500">
+                        Guest Name
+                      </span>
+                      <span className="font-bold text-slate-900">
+                        {selectedBooking.customer_name_snapshot}
+                      </span>
                     </p>
-                    <p>
-                      <span className="font-bold text-gray-900">ID Info:</span>{" "}
-                      {selectedBooking.customer_id_snapshot}
+                    <p className="flex justify-between border-t border-slate-200/60 pt-3">
+                      <span className="font-medium text-slate-500">
+                        Document ID
+                      </span>
+                      <span className="font-bold text-slate-900">
+                        {selectedBooking.customer_id_snapshot}
+                      </span>
                     </p>
-                    <p>
-                      <span className="font-bold text-gray-900">Dates:</span>{" "}
-                      {formatDate(selectedBooking.start_date)} →{" "}
-                      {formatDate(selectedBooking.end_date)}
+                    <p className="flex justify-between border-t border-slate-200/60 pt-3">
+                      <span className="font-medium text-slate-500">
+                        Duration
+                      </span>
+                      <span className="font-bold text-slate-900">
+                        {formatDate(selectedBooking.start_date)} →{" "}
+                        {formatDate(selectedBooking.end_date)}
+                      </span>
                     </p>
                   </div>
                 </div>
+
+                {/* --- Assigned Room Section --- */}
                 <div className="space-y-4">
-                  <h4 className="text-[10px] font-bold uppercase text-gray-400">
+                  <h4 className="text-[11px] font-black uppercase tracking-widest text-indigo-400">
                     Assigned Room
                   </h4>
-                  <div className="rounded-xl border border-blue-100 bg-blue-50/30 p-4 space-y-2 text-sm">
-                    <p>
-                      <span className="font-bold text-blue-900">Room:</span>{" "}
-                      {selectedBooking.room_snapshot}
+                  <div className="rounded-xl border border-indigo-100 bg-indigo-50/30 p-5 space-y-3 text-sm">
+                    <p className="flex items-start gap-3">
+                      <span className="mt-0.5 rounded bg-indigo-600 p-1 text-white">
+                        <svg
+                          className="h-3 w-3"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                          stroke="currentColor"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={3}
+                            d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"
+                          />
+                        </svg>
+                      </span>
+                      <span className="font-semibold text-indigo-900">
+                        {selectedBooking.room_snapshot}
+                      </span>
                     </p>
-                    <p>
-                      <span className="font-bold text-blue-900">Hotel:</span>{" "}
+                    <p className="text-indigo-800/80 pl-8 text-xs italic">
                       {selectedBooking.hotel_snapshot}
                     </p>
-                    <p>
-                      <span className="font-bold text-blue-900">Chain:</span>{" "}
+                    <p className="pl-8 text-xs font-bold text-indigo-600 uppercase tracking-tighter">
                       {selectedBooking.chain_name_snapshot}
                     </p>
                   </div>
                 </div>
               </div>
+
               <button
                 onClick={handleCheckIn}
-                className="mt-8 w-full rounded-xl bg-blue-600 py-4 text-sm font-bold text-white shadow-lg transition hover:bg-blue-700 active:scale-[0.99]"
+                className="mt-10 w-full rounded-xl bg-slate-900 py-4 text-sm font-bold text-white shadow-xl transition-all hover:bg-indigo-700 hover:shadow-indigo-200 active:scale-[0.98]"
               >
-                Verify Guest & Complete Check-In
+                Confirm Identity & Issue Key
               </button>
             </div>
           )}

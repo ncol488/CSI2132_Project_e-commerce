@@ -5,6 +5,7 @@ export type BookingStatus =
   | "checked-in";
 
 export type Booking = {
+  rentingID?: number | null;
   bookingID: number;
   start_date: string;
   end_date: string;
@@ -22,6 +23,7 @@ export type Booking = {
   total_price: number | null;
   checkin_datetime?: string | null;
 };
+
 export type Renting = Booking & {
   rentingID: number;
   employeeID: number;
@@ -38,6 +40,7 @@ export type Payment = {
 
 export type Room = {
   room_id: number;
+  room_number: number;
   hotel_id: number;
   hotel_name: string;
   is_available: boolean;
@@ -47,7 +50,7 @@ export type Room = {
   category: number;
   capacity: string;
   price: number;
-  amenities: string[];
+  amenities: string | string[];
   has_sea_view: boolean;
   has_mountain_view: boolean;
   is_extendable: boolean;

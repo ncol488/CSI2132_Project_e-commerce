@@ -1,47 +1,56 @@
 import { NextRequest, NextResponse } from "next/server";
 import db from "@/lib/db";
 
-// ── GET: Fetch one specific booking (Employee Dashboard / Details) ───────────
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
     const { id } = await params;
-    const bookingID = Number(id);
+    const bookingID = parseInt(id);
+
+    if (isNaN(bookingID)) {
+      return NextResponse.json(
+        { error: "Invalid booking ID." },
+        { status: 400 },
+      );
+    }
 
     const result = await db.query(
-      `
-      SELECT 
-        b.bookingID AS "bookingID",
-        b.customerID AS "customerID",
-        b.hotelID AS "hotelID",
-        b.room_number AS "roomNumber",
-        b.start_date AS "startDate",
-        b.end_date AS "endDate",
-        b.status,
-        b.customer_name_snapshot AS "customerName",
-        b.customer_id_snapshot AS "customerIdSnapshot",
-        b.room_snapshot AS "roomSnapshot",
-        b.hotel_snapshot AS "hotelSnapshot",
-        b.chain_name_snapshot AS "chainName"
-      FROM ehotels.booking b
-      WHERE b.bookingID = $1;
-      `,
+      `SELECT * FROM ehotels.Booking WHERE bookingID = $1`,
       [bookingID],
     );
 
     if (result.rows.length === 0) {
-      return NextResponse.json({ error: "Booking not found" }, { status: 404 });
+      return NextResponse.json(
+        { error: "Booking not found." },
+        { status: 404 },
+      );
     }
 
-    return NextResponse.json(result.rows[0]);
+    const b = result.rows[0];
+    return NextResponse.json({
+      bookingID: b.bookingid, // ← DB gives lowercase, rename to capital
+      customerid: b.customerid,
+      hotelid: b.hotelid,
+      room_number: b.room_number,
+      start_date: b.start_date,
+      end_date: b.end_date,
+      status: b.status,
+      customer_name_snapshot: b.customer_name_snapshot,
+      customer_id_snapshot: b.customer_id_snapshot,
+      room_snapshot: b.room_snapshot,
+      hotel_snapshot: b.hotel_snapshot,
+      chain_name_snapshot: b.chain_name_snapshot,
+    });
   } catch (error) {
     console.error("GET /api/bookings/[id] error:", error);
-    return NextResponse.json({ error: "Server error" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Failed to load booking." },
+      { status: 500 },
+    );
   }
 }
-
 // ── PATCH: Cancel a booking (Customer Side) ──────────────────────────────────
 export async function PATCH(
   request: NextRequest,

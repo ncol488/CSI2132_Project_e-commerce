@@ -5,12 +5,16 @@ import pool from "@/lib/db";
 export async function GET() {
   try {
     const availableRoomsResult = await pool.query(`
-      SELECT
-        area,
-        available_rooms AS "availableRooms"
-      FROM ehotels.availableroomsperarea
-      ORDER BY area;
-    `);
+  SELECT
+    v.area,
+    v.available_rooms        AS "availableRooms",
+    COUNT(r.room_number)::int AS "totalRooms"
+  FROM ehotels.availableroomsperarea v
+  JOIN ehotels.Hotel h ON h.city = v.area
+  JOIN ehotels.Room r  ON r.hotelid = h.hotelid
+  GROUP BY v.area, v.available_rooms
+  ORDER BY v.area
+`);
 
     // Join directly against tables to get hotel name + occupied beds
     // instead of relying on the limited hoteltotalcapacity view

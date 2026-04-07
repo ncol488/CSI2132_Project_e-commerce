@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Booking } from "../../type";
+import Sidebar from "@/app/components/sidebar";
 
 function formatDate(dateStr: string) {
   return new Date(dateStr).toLocaleDateString("en-CA", {
@@ -28,6 +29,8 @@ function StatusBadge({ status }: { status: Booking["status"] }) {
   );
 }
 
+type PaymentStatus = Record<number, "paid" | "unpaid" | "checking">;
+
 export default function MyBookingsPage() {
   const router = useRouter();
 
@@ -38,38 +41,9 @@ export default function MyBookingsPage() {
   const [cancelError, setCancelError] = useState("");
   const [cancelSuccess, setCancelSuccess] = useState("");
   const [customerID, setCustomerID] = useState<number | null>(null);
+  const [paymentStatus, setPaymentStatus] = useState<PaymentStatus>({});
 
-  const handlePay = async (bookingID: number) => {
-    const confirmPayment = confirm(
-      "Would you like to pay the full balance for this renting?",
-    );
-
-    if (confirmPayment) {
-      try {
-        const res = await fetch(`/api/payments`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            bookingID,
-            amount: bookings.find((b) => b.bookingID === bookingID)
-              ?.total_price,
-          }),
-        });
-
-        if (res.ok) {
-          alert("Payment successful! Thank you for staying with us.");
-          fetchBookings();
-        }
-      } catch (err) {
-        alert("Payment failed. Please try again.");
-      }
-    }
-  };
-
-  useEffect(() => {
-    if (customerID !== null) fetchBookings();
-  }, [customerID]);
-
+  // Read customerID from localStorage on mount
   useEffect(() => {
     const stored = localStorage.getItem("customerID");
     if (!stored) {
@@ -78,6 +52,23 @@ export default function MyBookingsPage() {
     }
     setCustomerID(parseInt(stored));
   }, []);
+
+  // Fetch bookings when customerID is set
+  useEffect(() => {
+    if (customerID !== null) fetchBookings();
+  }, [customerID]);
+
+  // Refresh when customer navigates back to this page (e.g. after paying)
+  useEffect(() => {
+    const handleVisible = () => {
+      if (document.visibilityState === "visible" && customerID !== null) {
+        fetchBookings();
+      }
+    };
+    document.addEventListener("visibilitychange", handleVisible);
+    return () =>
+      document.removeEventListener("visibilitychange", handleVisible);
+  }, [customerID]);
 
   const fetchBookings = async () => {
     setLoading(true);
@@ -88,7 +79,20 @@ export default function MyBookingsPage() {
       if (!res.ok) {
         setError(data.error || "Failed to load bookings.");
       } else {
-        setBookings(data.bookings || []);
+        const rows: Booking[] = data.bookings || [];
+        setBookings(rows);
+        // Check payment status for every checked-in booking that has a rentingID
+        rows
+          .filter((b) => b.status === "checked-in" && b.rentingID)
+          .forEach((b) => {
+            console.log(
+              "will check payment for",
+              b.bookingID,
+              "rentingID:",
+              b.rentingID,
+            );
+            checkPaymentStatus(b.bookingID, b.rentingID!);
+          });
       }
     } catch {
       setError("Something went wrong. Please try again.");
@@ -97,11 +101,25 @@ export default function MyBookingsPage() {
     }
   };
 
+  // Uses GET /api/payments?rentingID=X — checks existingPayment field
+  const checkPaymentStatus = async (bookingID: number, rentingID: number) => {
+    setPaymentStatus((prev) => ({ ...prev, [bookingID]: "checking" }));
+    try {
+      const res = await fetch(`/api/payments?rentingID=${rentingID}`);
+      const data = await res.json();
+      setPaymentStatus((prev) => ({
+        ...prev,
+        [bookingID]: data.existingPayment ? "paid" : "unpaid",
+      }));
+    } catch {
+      setPaymentStatus((prev) => ({ ...prev, [bookingID]: "unpaid" }));
+    }
+  };
+
   const handleCancel = async (bookingID: number) => {
     setCancelling(bookingID);
     setCancelError("");
     setCancelSuccess("");
-
     try {
       const res = await fetch(`/api/bookings/${bookingID}`, {
         method: "PATCH",
@@ -109,7 +127,6 @@ export default function MyBookingsPage() {
         body: JSON.stringify({ customerID }),
       });
       const data = await res.json();
-
       if (!res.ok) {
         setCancelError(data.error || "Failed to cancel booking.");
       } else {
@@ -134,116 +151,28 @@ export default function MyBookingsPage() {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
-  // Active stay (The "Renting" phase)
-  // Only show if the employee has officially checked them in.
-  const active = bookings.filter((b) => b.status === "checked-in");
-
-  // Upcoming reservations
-  // Must be confirmed, NOT checked-in yet, and the start date is today or later.
+  const active = bookings.filter(
+    (b) => b.status === "checked-in" && new Date(b.end_date) >= today,
+  );
   const upcoming = bookings.filter(
     (b) => b.status === "confirmed" && new Date(b.start_date) >= today,
   );
-
-  // Past and cancelled
-  // Includes anything explicitly 'cancelled' OR 'confirmed' stays that have already ended.
-  const past = bookings.filter(
-    (b) =>
-      b.status === "cancelled" ||
-      (b.status === "confirmed" && new Date(b.end_date) < today) ||
-      (b.status === "checked-in" && new Date(b.end_date) < today),
-  );
+  const past = bookings.filter((b) => {
+    const isCancelled = b.status === "cancelled";
+    const isPastConfirmed =
+      b.status === "confirmed" && new Date(b.end_date) < today;
+    const isPastCheckedIn =
+      b.status === "checked-in" && new Date(b.end_date) < today;
+    return isCancelled || isPastConfirmed || isPastCheckedIn;
+  });
 
   return (
     <div
       className="min-h-screen bg-gray-50 flex"
       style={{ fontFamily: "'DM Sans', sans-serif" }}
     >
-      {/* ── Sidebar ── */}
-      <aside className="w-64 min-h-screen bg-white border-r border-gray-100 flex flex-col shrink-0">
-        <div className="p-5 border-b border-gray-100">
-          <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
-              <svg
-                className="w-4 h-4 text-white"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"
-                />
-              </svg>
-            </div>
-            <div>
-              <p className="text-sm font-bold text-gray-900 leading-tight">
-                e-Hotels
-              </p>
-              <p className="text-xs text-gray-400">Management System</p>
-            </div>
-          </div>
-        </div>
+      <Sidebar role="customer" />
 
-        <div className="px-4 pt-5">
-          <div className="flex gap-2">
-            <button className="flex-1 py-1.5 rounded-lg text-xs font-semibold bg-blue-600 text-white shadow-sm">
-              Customer
-            </button>
-            <button
-              onClick={() => router.push("/employee")}
-              className="flex-1 py-1.5 rounded-lg text-xs font-semibold border border-gray-200 text-gray-500 hover:border-gray-300 transition-colors"
-            >
-              Employee
-            </button>
-          </div>
-        </div>
-
-        <nav className="px-3 pt-4 flex-1 space-y-1">
-          <button
-            onClick={() => router.push("/customer")}
-            className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-gray-500 hover:bg-gray-50 text-sm font-medium transition-colors"
-          >
-            <svg
-              className="w-4 h-4"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-              />
-            </svg>
-            Search &amp; Book
-          </button>
-          <button className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl bg-blue-50 text-blue-700 text-sm font-medium">
-            <svg
-              className="w-4 h-4"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
-              />
-            </svg>
-            My Bookings
-          </button>
-        </nav>
-
-        <div className="p-4 border-t border-gray-100">
-          <p className="text-xs text-gray-300">© 2026 e-Hotels Consortium</p>
-        </div>
-      </aside>
-
-      {/* ── Main ── */}
       <main className="flex-1 flex flex-col">
         {/* Hero */}
         <div
@@ -332,15 +261,15 @@ export default function MyBookingsPage() {
             </div>
           )}
 
-          {/* ── Active Stays (Current Renting) ── */}
+          {/* ── Current Stay ── */}
           {!loading && active.length > 0 && (
             <section className="mb-8">
               <h2 className="text-sm font-bold text-blue-600 uppercase tracking-widest mb-3 flex items-center gap-2">
                 <span className="relative flex h-2 w-2">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
-                  <span className="relative inline-flex rounded-full h-2 w-2 bg-blue-600"></span>
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75" />
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-blue-600" />
                 </span>
-                Current Stay (Active Renting)
+                Current Stay
               </h2>
               <div className="space-y-3">
                 {active.map((b) => (
@@ -349,15 +278,15 @@ export default function MyBookingsPage() {
                     booking={b}
                     canCancel={false}
                     cancelling={false}
-                    onPay={handlePay}
                     onCancel={() => {}}
+                    paymentStatus={paymentStatus[b.bookingID]}
                   />
                 ))}
               </div>
             </section>
           )}
 
-          {/* ── Upcoming bookings ── */}
+          {/* ── Upcoming ── */}
           {!loading && upcoming.length > 0 && (
             <section className="mb-8">
               <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">
@@ -370,15 +299,15 @@ export default function MyBookingsPage() {
                     booking={b}
                     canCancel={canCancel(b)}
                     cancelling={cancelling === b.bookingID}
-                    onPay={handlePay}
                     onCancel={() => handleCancel(b.bookingID)}
+                    paymentStatus={undefined}
                   />
                 ))}
               </div>
             </section>
           )}
 
-          {/* ── Past / cancelled bookings ── */}
+          {/* ── Past & Cancelled ── */}
           {!loading && past.length > 0 && (
             <section>
               <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">
@@ -390,9 +319,9 @@ export default function MyBookingsPage() {
                     key={b.bookingID}
                     booking={b}
                     canCancel={false}
-                    onPay={handlePay}
                     cancelling={false}
                     onCancel={() => {}}
+                    paymentStatus={paymentStatus[b.bookingID]}
                   />
                 ))}
               </div>
@@ -404,19 +333,23 @@ export default function MyBookingsPage() {
   );
 }
 
+// ── Booking Card ──────────────────────────────────────────────────────────────
+
 function BookingCard({
   booking,
   canCancel,
   cancelling,
   onCancel,
-  onPay,
+  paymentStatus,
 }: {
   booking: Booking;
   canCancel: boolean;
   cancelling: boolean;
   onCancel: () => void;
-  onPay: (id: number) => void;
+  paymentStatus: "paid" | "unpaid" | "checking" | undefined;
 }) {
+  const isCheckedIn = booking.status === "checked-in";
+
   return (
     <div
       className={`bg-white border rounded-2xl p-5 shadow-sm transition-opacity ${
@@ -425,7 +358,7 @@ function BookingCard({
     >
       <div className="flex items-start justify-between gap-4">
         <div className="flex-1 min-w-0">
-          {/* Hotel + chain */}
+          {/* Hotel + status badge */}
           <div className="flex items-center gap-2 mb-1">
             <h3 className="font-semibold text-gray-900 text-base leading-tight truncate">
               {booking.hotel_name}
@@ -459,15 +392,62 @@ function BookingCard({
             </span>
           </div>
 
-          {/* Room details from snapshot */}
           <p className="text-xs text-gray-400 truncate">
             {booking.room_snapshot}
           </p>
+
+          {/* Payment status — only shown for checked-in bookings */}
+          {isCheckedIn && (
+            <div className="mt-3 flex items-center gap-2">
+              {paymentStatus === "checking" && (
+                <span className="text-xs text-gray-400 flex items-center gap-1">
+                  <div className="w-3 h-3 border border-gray-300 border-t-transparent rounded-full animate-spin" />
+                  Checking payment...
+                </span>
+              )}
+              {paymentStatus === "paid" && (
+                <span className="inline-flex items-center gap-1 text-xs font-semibold text-green-700 bg-green-50 border border-green-100 px-2.5 py-1 rounded-full">
+                  <svg
+                    className="w-3 h-3"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M5 13l4 4L19 7"
+                    />
+                  </svg>
+                  Paid
+                </span>
+              )}
+              {paymentStatus === "unpaid" && (
+                <span className="inline-flex items-center gap-1 text-xs font-semibold text-amber-700 bg-amber-50 border border-amber-100 px-2.5 py-1 rounded-full">
+                  <svg
+                    className="w-3 h-3"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                    />
+                  </svg>
+                  Payment pending
+                </span>
+              )}
+            </div>
+          )}
         </div>
 
-        {/* Price + cancel */}
+        {/* Price + action buttons */}
         <div className="flex flex-col items-end gap-3 shrink-0">
-          {booking.total_price !== null ? (
+          {booking.total_price !== null && booking.total_price !== undefined ? (
             <div className="text-right">
               <p className="text-lg font-bold text-gray-900">
                 ${booking.total_price.toFixed(2)}
@@ -482,6 +462,30 @@ function BookingCard({
             <p className="text-xs text-gray-400">Price unavailable</p>
           )}
 
+          {/* Pay Now — only shown when checked-in, unpaid, and rentingID exists */}
+          {isCheckedIn && paymentStatus === "unpaid" && booking.rentingID && (
+            <a
+              href={`/customer/components/payment?rentingID=${booking.rentingID}`}
+              className="text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1.5"
+            >
+              <svg
+                className="w-3 h-3"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"
+                />
+              </svg>
+              Pay Now
+            </a>
+          )}
+
+          {/* Cancel booking */}
           {canCancel && (
             <button
               onClick={onCancel}
@@ -493,6 +497,7 @@ function BookingCard({
           )}
         </div>
       </div>
+
       <div className="mt-3 pt-3 border-t border-gray-50">
         <p className="text-xs text-gray-300">Booking #{booking.bookingID}</p>
       </div>

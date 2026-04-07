@@ -46,7 +46,7 @@ export default function LoginPage() {
         localStorage.setItem("hotelID", String(data.user.hotelId));
       }
 
-      router.push(role === "customer" ? "/customer" : "/employee");
+      router.push(role === "customer" ? "/customer" : "/employee/checkin");
     } catch (err) {
       setError("Something went wrong. Please try again.");
       setLoading(false);

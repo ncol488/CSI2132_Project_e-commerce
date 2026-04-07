@@ -14,7 +14,6 @@ type RoomRow = {
   extendable: boolean;
   problemsDamages: string | null;
   amenities: string[];
-  availability: string;
 };
 
 type RoomForm = {
@@ -70,7 +69,8 @@ export default function RoomsPage() {
         });
         return;
       }
-      setRooms(data);
+      // employee branch returns a plain array
+      setRooms(Array.isArray(data) ? data : data.rooms || []);
     } catch {
       setMessage({ type: "error", text: "Failed to load rooms." });
     } finally {
@@ -86,14 +86,13 @@ export default function RoomsPage() {
     const q = search.trim().toLowerCase();
     if (!q) return rooms;
     return rooms.filter((room) => {
-      const amenitiesText = room.amenities.join(", ").toLowerCase();
+      const amenitiesText = (room.amenities || []).join(", ").toLowerCase();
       return (
-        room.roomNumber.toString().includes(q) ||
-        room.hotelID.toString().includes(q) ||
-        room.hotelName.toLowerCase().includes(q) ||
-        room.city.toLowerCase().includes(q) ||
-        room.viewType.toLowerCase().includes(q) ||
-        room.availability.toLowerCase().includes(q) ||
+        room.roomNumber?.toString().includes(q) ||
+        room.hotelID?.toString().includes(q) ||
+        room.hotelName?.toLowerCase().includes(q) ||
+        room.city?.toLowerCase().includes(q) ||
+        room.viewType?.toLowerCase().includes(q) ||
         amenitiesText.includes(q)
       );
     });
@@ -427,7 +426,6 @@ export default function RoomsPage() {
                         "Price",
                         "Capacity",
                         "Amenities",
-                        "Availability",
                         "Damages",
                         "Actions",
                       ].map((col) => (
@@ -484,9 +482,6 @@ export default function RoomsPage() {
                             {room.amenities.length > 0
                               ? room.amenities.join(", ")
                               : "—"}
-                          </td>
-                          <td className="px-6 py-4 text-gray-700">
-                            {room.availability}
                           </td>
                           <td className="px-6 py-4 text-gray-700">
                             {room.problemsDamages || "—"}

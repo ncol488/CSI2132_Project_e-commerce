@@ -5,7 +5,7 @@ import pool from "@/lib/db";
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ id: string }> },
 ) {
   const client = await pool.connect();
 
@@ -16,7 +16,7 @@ export async function POST(
     if (Number.isNaN(bookingID)) {
       return NextResponse.json(
         { error: "Invalid booking ID" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -30,15 +30,12 @@ export async function POST(
       WHERE bookingID = $1
       FOR UPDATE;
       `,
-      [bookingID]
+      [bookingID],
     );
 
     if (bookingResult.rows.length === 0) {
       await client.query("ROLLBACK");
-      return NextResponse.json(
-        { error: "Booking not found" },
-        { status: 404 }
-      );
+      return NextResponse.json({ error: "Booking not found" }, { status: 404 });
     }
 
     const booking = bookingResult.rows[0];
@@ -50,14 +47,14 @@ export async function POST(
       FROM ehotels.renting
       WHERE bookingID = $1;
       `,
-      [bookingID]
+      [bookingID],
     );
 
     if (existingRenting.rows.length > 0) {
       await client.query("ROLLBACK");
       return NextResponse.json(
         { error: "Already converted to renting." },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -77,14 +74,14 @@ export async function POST(
       WHERE hotelID = $1
       LIMIT 1;
       `,
-      [booking.hotelid]
+      [booking.hotelid],
     );
 
     if (employeeResult.rows.length === 0) {
       await client.query("ROLLBACK");
       return NextResponse.json(
         { error: "No employee found for hotel." },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -143,7 +140,12 @@ export async function POST(
         booking.room_snapshot,
         booking.hotel_snapshot,
         booking.chain_name_snapshot,
-      ]
+      ],
+    );
+
+    await client.query(
+      `UPDATE ehotels.Booking SET status = 'checked-in' WHERE bookingID = $1`,
+      [bookingID],
     );
 
     await client.query("COMMIT");
@@ -162,7 +164,7 @@ export async function POST(
         error: "Server error",
         details: error instanceof Error ? error.message : String(error),
       },
-      { status: 500 }
+      { status: 500 },
     );
   } finally {
     client.release();

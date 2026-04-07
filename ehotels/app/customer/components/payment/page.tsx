@@ -31,16 +31,6 @@ type PaymentDetails = {
   } | null;
 };
 
-function formatRentingId(id: number | null | undefined) {
-  if (id === null || id === undefined) return "-";
-  return `R${id.toString().padStart(3, "0")}`;
-}
-
-function formatBookingId(id: number | null | undefined) {
-  if (id === null || id === undefined) return "Walk-in";
-  return `B${id.toString().padStart(3, "0")}`;
-}
-
 function formatDate(dateString: string | null | undefined) {
   if (!dateString) return "-";
   return new Date(dateString).toISOString().split("T")[0];
@@ -51,7 +41,7 @@ function formatDateTime(dateString: string | null | undefined) {
   return new Date(dateString).toLocaleString();
 }
 
-export default function PaymentsPage() {
+export default function CustomerPaymentsPage() {
   const searchParams = useSearchParams();
   const rentingID = searchParams.get("rentingID");
 
@@ -65,7 +55,7 @@ export default function PaymentsPage() {
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
-    async function loadPaymentPage() {
+    async function load() {
       if (!rentingID) {
         setMessage("No renting was selected.");
         setMessageType("error");
@@ -73,29 +63,28 @@ export default function PaymentsPage() {
         return;
       }
       try {
-        const response = await fetch(`/api/payments?rentingID=${rentingID}`);
-        const data = await response.json();
-        if (!response.ok) {
+        const res = await fetch(`/api/payments?rentingID=${rentingID}`);
+        const data = await res.json();
+        if (!res.ok) {
           setMessage(data.error || "Could not load payment details.");
           setMessageType("error");
           return;
         }
         setDetails(data);
-      } catch (error) {
-        console.error("Payment page load error:", error);
+      } catch {
         setMessage("Failed to load payment details.");
         setMessageType("error");
       } finally {
         setLoading(false);
       }
     }
-    loadPaymentPage();
+    load();
   }, [rentingID]);
 
   async function handleRecordPayment(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     if (!rentingID) {
-      setMessage("No renting was selected.");
+      setMessage("No renting selected.");
       setMessageType("error");
       return;
     }
@@ -109,7 +98,7 @@ export default function PaymentsPage() {
     setMessage("");
 
     try {
-      const response = await fetch("/api/payments", {
+      const res = await fetch("/api/payments", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -117,23 +106,21 @@ export default function PaymentsPage() {
           payment_method: paymentMethod,
         }),
       });
-      const data = await response.json();
-      if (!response.ok) {
+      const data = await res.json();
+      if (!res.ok) {
         setMessage(data.error || "Could not record payment.");
         setMessageType("error");
         return;
       }
-      setMessage(data.message || "Payment recorded successfully.");
+      setMessage("Payment recorded successfully! Thank you for your stay.");
       setMessageType("success");
 
-      const refreshResponse = await fetch(
-        `/api/payments?rentingID=${rentingID}`,
-      );
-      const refreshData = await refreshResponse.json();
-      if (refreshResponse.ok) setDetails(refreshData);
-    } catch (error) {
-      console.error("Payment submit error:", error);
-      setMessage("Something went wrong while recording the payment.");
+      // Refresh so the "already paid" section appears
+      const refresh = await fetch(`/api/payments?rentingID=${rentingID}`);
+      const refreshData = await refresh.json();
+      if (refresh.ok) setDetails(refreshData);
+    } catch {
+      setMessage("Something went wrong. Please try again.");
       setMessageType("error");
     } finally {
       setSubmitting(false);
@@ -145,50 +132,23 @@ export default function PaymentsPage() {
       className="min-h-screen bg-gray-50 flex"
       style={{ fontFamily: "'DM Sans', sans-serif" }}
     >
-      <Sidebar role="employee" />
+      <Sidebar role="customer" />
 
       <section className="flex-1 overflow-auto">
-        {/* ── Page header ── */}
+        {/* ── Header ── */}
         <div className="border-b border-gray-200 bg-white px-8 py-6">
           <h2 className="text-3xl font-bold text-gray-900 tracking-tight">
-            Record Payment
+            Complete Payment
           </h2>
           <p className="mt-1 text-sm text-gray-500">
-            Attach a payment to an existing renting
+            Pay for your current stay
           </p>
         </div>
 
-        {/* ── Tab bar (matches checkin page style) ── */}
-        <div className="border-b border-gray-200 bg-white px-8">
-          <div className="flex gap-6">
-            <Link
-              href="/employee/checkin"
-              className="border-b-2 border-transparent py-3.5 text-sm font-semibold text-gray-500 transition hover:text-gray-700"
-            >
-              Check-In Desk
-            </Link>
-            <Link
-              href="/employee/walkin"
-              className="border-b-2 border-transparent py-3.5 text-sm font-semibold text-gray-500 transition hover:text-gray-700"
-            >
-              Walk-In Renting
-            </Link>
-            <Link
-              href="/employee/rentings"
-              className="border-b-2 border-transparent py-3.5 text-sm font-semibold text-gray-500 transition hover:text-gray-700"
-            >
-              All Rentings
-            </Link>
-            <span className="border-b-2 border-blue-600 py-3.5 text-sm font-semibold text-blue-600">
-              Payments
-            </span>
-          </div>
-        </div>
-
-        <div className="p-8 max-w-4xl">
+        <div className="p-8 max-w-3xl">
           {/* Back link */}
           <Link
-            href="/employee/rentings"
+            href="/customer/bookings"
             className="inline-flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-700 mb-6 transition-colors"
           >
             <svg
@@ -204,7 +164,7 @@ export default function PaymentsPage() {
                 d="M15 19l-7-7 7-7"
               />
             </svg>
-            Back to All Rentings
+            Back to My Bookings
           </Link>
 
           {/* Feedback banner */}
@@ -229,33 +189,23 @@ export default function PaymentsPage() {
             </div>
           )}
 
-          {/* No details */}
           {!loading && !details && !message && (
             <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm text-sm text-gray-500">
               No renting details found.
             </div>
           )}
 
-          {/* Main content */}
           {!loading && details && (
             <div className="space-y-5">
-              {/* ── Renting details card ── */}
+              {/* ── Stay details ── */}
               <div className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
                 <div className="border-b border-gray-100 px-6 py-4">
                   <h3 className="text-sm font-bold uppercase tracking-wider text-gray-500">
-                    Renting Details
+                    Stay Details
                   </h3>
                 </div>
                 <div className="grid grid-cols-2 gap-0 divide-x divide-y divide-gray-100 md:grid-cols-4">
                   {[
-                    {
-                      label: "Renting ID",
-                      value: formatRentingId(details.renting.rentingid),
-                    },
-                    {
-                      label: "Booking Ref",
-                      value: formatBookingId(details.renting.bookingid),
-                    },
                     {
                       label: "Customer",
                       value: details.renting.customer_name_snapshot,
@@ -293,14 +243,14 @@ export default function PaymentsPage() {
                 </div>
               </div>
 
-              {/* ── Payment summary card ── */}
+              {/* ── Payment summary ── */}
               <div className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
                 <div className="border-b border-gray-100 px-6 py-4">
                   <h3 className="text-sm font-bold uppercase tracking-wider text-gray-500">
                     Payment Summary
                   </h3>
                 </div>
-                <div className="grid grid-cols-3 divide-x divide-gray-100 p-6 gap-4">
+                <div className="grid grid-cols-3 p-6 gap-4">
                   <div className="text-center">
                     <p className="text-xs font-semibold uppercase tracking-wide text-gray-400 mb-2">
                       Price / Night
@@ -346,10 +296,10 @@ export default function PaymentsPage() {
                       />
                     </svg>
                     <h3 className="text-sm font-bold uppercase tracking-wider text-green-700">
-                      Payment Already Recorded
+                      Payment Complete
                     </h3>
                   </div>
-                  <div className="grid grid-cols-3 divide-x divide-green-100 p-6 gap-4">
+                  <div className="grid grid-cols-3 p-6 gap-4">
                     <div className="text-center">
                       <p className="text-xs font-semibold uppercase tracking-wide text-green-600 mb-1">
                         Payment ID
@@ -375,19 +325,27 @@ export default function PaymentsPage() {
                       </p>
                     </div>
                   </div>
+                  <div className="px-6 pb-5 text-center">
+                    <Link
+                      href="/customer/bookings"
+                      className="inline-flex items-center gap-2 text-sm font-semibold text-blue-600 hover:text-blue-700 transition-colors"
+                    >
+                      ← Back to My Bookings
+                    </Link>
+                  </div>
                 </div>
               ) : (
                 /* ── Payment form ── */
                 <div className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
                   <div className="border-b border-gray-100 px-6 py-4">
                     <h3 className="text-sm font-bold uppercase tracking-wider text-gray-500">
-                      Record Payment
+                      Payment Method
                     </h3>
                   </div>
                   <form onSubmit={handleRecordPayment} className="p-6">
                     <div className="mb-5 max-w-sm">
                       <label className="mb-2 block text-sm font-semibold text-gray-700">
-                        Payment Method
+                        Select Payment Method
                       </label>
                       <div className="relative">
                         <select
@@ -396,7 +354,7 @@ export default function PaymentsPage() {
                           required
                           className="w-full appearance-none rounded-xl border border-gray-200 px-4 py-2.5 text-sm text-gray-700 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition pr-8"
                         >
-                          <option value="">Select payment method</option>
+                          <option value="">Choose a method...</option>
                           <option value="Cash">Cash</option>
                           <option value="Debit">Debit</option>
                           <option value="Credit">Credit</option>
@@ -425,7 +383,7 @@ export default function PaymentsPage() {
                       {submitting ? (
                         <>
                           <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                          Recording...
+                          Processing...
                         </>
                       ) : (
                         <>
@@ -442,7 +400,7 @@ export default function PaymentsPage() {
                               d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"
                             />
                           </svg>
-                          Record Payment — ${details.totalAmount.toFixed(2)}
+                          Pay ${details.totalAmount.toFixed(2)}
                         </>
                       )}
                     </button>

@@ -9,8 +9,16 @@ export default function RoomCard({
   room: Room;
   onBook: (room: Room) => void;
 }) {
-  const isUnavailable = room.is_available === false;
-
+  console.log("Am I on the client?", typeof window !== "undefined");
+  const isUnavailable =
+    room.is_available === false || (room.is_available as any) === "false";
+  const amenities = Array.isArray(room.amenities)
+    ? room.amenities
+    : [room.amenities];
+  console.log(`Room ${room.room_number}:`, {
+    value: room.is_available,
+    type: typeof room.is_available,
+  });
   return (
     <div
       className={`relative bg-white border rounded-2xl shadow-sm transition-all p-5 flex flex-col gap-3 ${
@@ -71,19 +79,19 @@ export default function RoomCard({
         {room.is_extendable && <span>· Extendable</span>}
       </div>
 
-      {room.amenities && room.amenities.length > 0 && (
+      {amenities && amenities.length > 0 && (
         <div className="flex gap-1 flex-wrap">
-          {room.amenities.slice(0, 4).map((a) => (
+          {amenities.slice(0, 4).map((a, i) => (
             <span
-              key={a}
+              key={`${a}-${i}`}
               className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full"
             >
               {a}
             </span>
           ))}
-          {room.amenities.length > 4 && (
+          {amenities.length > 4 && (
             <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">
-              +{room.amenities.length - 4} more
+              +{amenities.length - 4} more
             </span>
           )}
         </div>

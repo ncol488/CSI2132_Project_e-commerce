@@ -1,18 +1,34 @@
 import { NextRequest, NextResponse } from "next/server";
 import db from "@/lib/db";
+import { cookies } from "next/headers";
 
 export async function POST(request: NextRequest) {
   try {
     const { email, password, role } = await request.json();
+    const cookieStore = await cookies();
 
+    // --- CUSTOMER LOGIN ---
     if (role === "customer") {
       const res = await db.query(
-        "SELECT * FROM ehotels.Customer WHERE email = $1",
+        "SELECT * FROM ehotels.customer WHERE email = $1",
         [email],
       );
 
       if (res.rows.length > 0) {
         const user = res.rows[0];
+
+        // Set Cookies for Proxy (Next.js 16 convention)
+        cookieStore.set("session", String(user.customerid), {
+          httpOnly: true,
+          secure: process.env.NODE_ENV === "production",
+          path: "/",
+          maxAge: 60 * 60 * 24, // 1 day
+        });
+        cookieStore.set("role", "customer", {
+          path: "/",
+          maxAge: 60 * 60 * 24,
+        });
+
         return NextResponse.json({
           success: true,
           role: "customer",
@@ -26,14 +42,28 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // --- EMPLOYEE LOGIN ---
     if (role === "employee") {
       const res = await db.query(
-        "SELECT * FROM ehotels.Employee WHERE email = $1",
+        "SELECT * FROM ehotels.employee WHERE email = $1",
         [email],
       );
 
       if (res.rows.length > 0) {
         const user = res.rows[0];
+
+        // Set Cookies for Proxy
+        cookieStore.set("session", String(user.employeeid), {
+          httpOnly: true,
+          secure: process.env.NODE_ENV === "production",
+          path: "/",
+          maxAge: 60 * 60 * 24,
+        });
+        cookieStore.set("role", "employee", {
+          path: "/",
+          maxAge: 60 * 60 * 24,
+        });
+
         return NextResponse.json({
           success: true,
           role: "employee",
@@ -47,7 +77,6 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // If neither block returned, credentials were wrong
     return NextResponse.json(
       { error: "Invalid ID or Role. Please check your credentials." },
       { status: 401 },

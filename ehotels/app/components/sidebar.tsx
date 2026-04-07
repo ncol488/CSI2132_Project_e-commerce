@@ -1,8 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { useState, useEffect } from "react";
+import { usePathname, useRouter } from "next/navigation";
+import { useState } from "react";
 
 type Props = {
   role: "customer" | "employee";
@@ -10,6 +10,7 @@ type Props = {
 
 export default function Sidebar({ role }: Props) {
   const pathname = usePathname();
+  const router = useRouter();
 
   const [isManagementOpen, setIsManagementOpen] = useState(
     pathname.startsWith("/employee/management"),
@@ -22,8 +23,27 @@ export default function Sidebar({ role }: Props) {
     { label: "Rooms", href: "/employee/management/rooms" },
   ];
 
+  /**
+   * Clears the session via the API and local storage,
+   * then redirects to the login page.
+   */
+  const handleLogout = async () => {
+    try {
+      // 1. Call the logout API to clear server-side cookies
+      await fetch("/api/logout", { method: "POST" });
+
+      // 2. Clear local storage to remove UI-specific data
+      localStorage.clear();
+
+      router.push("/login");
+      router.refresh();
+    } catch (err) {
+      console.error("Failed to log out:", err);
+    }
+  };
+
   return (
-    <aside className="flex w-60 flex-col border-r border-gray-200 bg-white">
+    <aside className="flex w-60 flex-col border-r border-gray-200 bg-white min-h-screen">
       {/* Logo Section */}
       <div className="flex items-center gap-3 border-b border-gray-200 px-5 py-4">
         <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-600">
@@ -46,28 +66,24 @@ export default function Sidebar({ role }: Props) {
           <p className="text-xs text-gray-500">Management System</p>
         </div>
       </div>
-      <div className="border-b border-gray-200 px-4 py-3">
-        <div className="flex gap-2">
-          <Link
-            href="/customer/search"
-            className={`flex-1 rounded-lg border px-3 py-1.5 text-center text-[10px] font-bold uppercase transition ${
-              role === "customer"
-                ? "border-transparent bg-blue-600 text-white"
-                : "border-gray-200 text-gray-600 hover:bg-gray-50"
-            }`}
+
+      {/* Auth Section */}
+      <div className="border-b border-gray-200 px-4 py-3 bg-gray-50/50">
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex flex-col">
+            <span className="text-[10px] font-bold text-gray-400 uppercase tracking-tight">
+              Signed in as
+            </span>
+            <span className="text-xs font-bold text-blue-600 capitalize">
+              {role}
+            </span>
+          </div>
+          <button
+            onClick={handleLogout}
+            className="rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-[10px] font-bold uppercase text-gray-600 transition hover:bg-red-50 hover:text-red-600 hover:border-red-200 shadow-sm"
           >
-            Customer
-          </Link>
-          <Link
-            href="/employee/checkin"
-            className={`flex-1 rounded-lg border px-3 py-1.5 text-center text-[10px] font-bold uppercase transition ${
-              role === "employee"
-                ? "border-transparent bg-blue-600 text-white"
-                : "border-gray-200 text-gray-600 hover:bg-gray-50"
-            }`}
-          >
-            Employee
-          </Link>
+            Log Out
+          </button>
         </div>
       </div>
 
@@ -76,7 +92,7 @@ export default function Sidebar({ role }: Props) {
         {role === "customer" ? (
           <>
             <SidebarLink
-              href="/customer/search"
+              href="/customer"
               icon={<SearchIcon />}
               label="Search Rooms"
               active={pathname.startsWith("/customer/search")}
@@ -86,12 +102,6 @@ export default function Sidebar({ role }: Props) {
               icon={<BookingIcon />}
               label="My Bookings"
               active={pathname.startsWith("/customer/bookings")}
-            />
-            <SidebarLink
-              href="/customer/profile"
-              icon={<ProfileIcon />}
-              label="Profile"
-              active={pathname.startsWith("/customer/profile")}
             />
           </>
         ) : (
@@ -108,7 +118,7 @@ export default function Sidebar({ role }: Props) {
                 onClick={() => setIsManagementOpen(!isManagementOpen)}
                 className={`flex w-full items-center justify-between rounded-lg px-3 py-2.5 text-sm font-medium transition ${
                   pathname.startsWith("/employee/management")
-                    ? "text-blue-700"
+                    ? "text-blue-700 bg-blue-50/50"
                     : "text-gray-600 hover:bg-gray-100"
                 }`}
               >
@@ -132,7 +142,7 @@ export default function Sidebar({ role }: Props) {
               </button>
 
               {isManagementOpen && (
-                <div className="mt-1 ml-9 space-y-1">
+                <div className="mt-1 ml-9 space-y-1 border-l border-gray-100">
                   {managementSubLinks.map((sub) => (
                     <Link
                       key={sub.href}
@@ -170,6 +180,9 @@ export default function Sidebar({ role }: Props) {
   );
 }
 
+/**
+ * Reusable Nav Link Component
+ */
 function SidebarLink({
   href,
   icon,
@@ -196,6 +209,7 @@ function SidebarLink({
   );
 }
 
+/* --- Icons --- */
 const SearchIcon = () => (
   <svg
     className="h-4 w-4 shrink-0"

@@ -279,9 +279,9 @@ export default function RentingsPage() {
                           <td className="px-6 py-4">
                             <Link
                               href={`/employee/payments?rentingID=${row.rentingid}`}
-                              className="rounded-lg bg-blue-600 px-4 py-2 text-xs font-semibold text-white transition hover:bg-blue-700"
+                              className="rounded-lg border border-gray-200 bg-white px-4 py-2 text-xs font-bold text-gray-700 shadow-sm hover:bg-gray-50 transition"
                             >
-                              Record Payment
+                              Payment
                             </Link>
                           </td>
                         </tr>

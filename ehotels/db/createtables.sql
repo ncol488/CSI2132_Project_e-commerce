@@ -58,9 +58,11 @@ CREATE TABLE ehotels.Room (
     view_type VARCHAR(50) NOT NULL CHECK (view_type IN ('sea', 'mountain', 'none')),
     extendable BOOLEAN NOT NULL,
     problems_damages TEXT,
+    is_available BOOLEAN DEFAULT TRUE, -- Add it right here!
     PRIMARY KEY (room_number, hotelID),
     FOREIGN KEY (hotelID) REFERENCES ehotels.Hotel(hotelID)
 );
+
 
 -- 8. Employee (Depends on Hotel)
 CREATE TABLE ehotels.Employee (
