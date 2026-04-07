@@ -51,7 +51,7 @@ WHERE customerID IN (
 
 SELECT e.hotelID, e.first_name, e.last_name
 FROM Employee e
-JOIN Employee_Role er ON e.employeeID = er.employeeID -- need to join so have employee and their associated role
+JOIN Employee_Role er ON e.employeeID = er.employeeID 
 WHERE er.role_name = 'Manager'
 ORDER BY e.hotelID;
 

@@ -2,7 +2,7 @@
 CREATE SCHEMA IF NOT EXISTS ehotels;
 SET search_path TO ehotels;
 
--- 2. HotelChain (The Grandparent)
+-- 2. HotelChain
 CREATE TABLE ehotels.HotelChain (
     chainID INT PRIMARY KEY,
     chain_name VARCHAR(150) NOT NULL,
@@ -58,7 +58,6 @@ CREATE TABLE ehotels.Room (
     view_type VARCHAR(50) NOT NULL CHECK (view_type IN ('sea', 'mountain', 'none')),
     extendable BOOLEAN NOT NULL,
     problems_damages TEXT,
-    is_available BOOLEAN DEFAULT TRUE, -- Add it right here!
     PRIMARY KEY (room_number, hotelID),
     FOREIGN KEY (hotelID) REFERENCES ehotels.Hotel(hotelID)
 );
@@ -127,23 +126,22 @@ CREATE TABLE ehotels.Room_Amenity (
 
 -- 10. Booking
 CREATE TABLE ehotels.Booking (
-    bookingID INT PRIMARY KEY,
-    start_date DATE NOT NULL,
-    end_date DATE NOT NULL,
-    status VARCHAR(20) NOT NULL CHECK (status IN ('pending', 'confirmed', 'cancelled')),
-    customerID INT,
+    bookingID   INT PRIMARY KEY,
+    start_date  DATE NOT NULL,
+    end_date    DATE NOT NULL,
+    status      VARCHAR(20) NOT NULL CHECK (status IN ('pending', 'confirmed', 'cancelled', 'checked-in')),
+    customerID  INT,
     room_number INT,
-    hotelID INT,
+    hotelID     INT,
     customer_name_snapshot VARCHAR(120) NOT NULL,
-    customer_id_snapshot VARCHAR(80) NOT NULL,
-    room_snapshot TEXT NOT NULL,
-    hotel_snapshot TEXT NOT NULL,
-    chain_name_snapshot VARCHAR(120) NOT NULL,
+    customer_id_snapshot   VARCHAR(80)  NOT NULL,
+    room_snapshot          TEXT NOT NULL,
+    hotel_snapshot         TEXT NOT NULL,
+    chain_name_snapshot    VARCHAR(120) NOT NULL,
     CHECK (start_date < end_date),
-    FOREIGN KEY (customerID) REFERENCES ehotels.Customer(customerID),
-    FOREIGN KEY (room_number, hotelID) REFERENCES ehotels.Room(room_number, hotelID)
+    FOREIGN KEY (customerID)              REFERENCES ehotels.Customer(customerID),
+    FOREIGN KEY (room_number, hotelID)    REFERENCES ehotels.Room(room_number, hotelID)
 );
-
 -- 11. Renting
 CREATE TABLE ehotels.Renting (
     rentingID INT PRIMARY KEY,

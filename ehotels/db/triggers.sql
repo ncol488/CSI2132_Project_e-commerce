@@ -1,4 +1,3 @@
--- make sure "ehotels." so that doesnt mess up app when fetching data
 
 -- Trigger 1: prevent overlapping bookings
 
