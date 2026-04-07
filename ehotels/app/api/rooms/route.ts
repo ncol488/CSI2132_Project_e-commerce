@@ -34,7 +34,10 @@ export async function GET(request: NextRequest) {
         LEFT JOIN ehotels.Amenity a ON a.amenityID = ra.amenityID
       `;
 
-      const values = [parseFloat(minPrice), parseFloat(maxPrice)];
+      const values: (number | string)[] = [
+        parseFloat(minPrice),
+        parseFloat(maxPrice),
+      ];
       const where = [`r.price BETWEEN $1 AND $2`];
 
       if (area) {

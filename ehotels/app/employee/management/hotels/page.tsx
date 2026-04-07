@@ -1,9 +1,7 @@
 "use client";
 
-// manage hotel changes
-
-import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
+import Sidebar from "@/app/components/sidebar";
 
 type HotelRow = {
   hotelID: number;
@@ -54,32 +52,37 @@ const emptyForm: HotelForm = {
   chainPhone: "",
 };
 
+const inputClass =
+  "w-full rounded-lg border border-gray-200 px-3 py-2.5 text-sm text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500";
+const labelClass =
+  "mb-1.5 block text-xs font-semibold uppercase tracking-wide text-gray-500";
+
 export default function HotelsPage() {
   const [hotels, setHotels] = useState<HotelRow[]>([]);
   const [search, setSearch] = useState("");
-  const [message, setMessage] = useState("");
+  const [message, setMessage] = useState<{
+    type: "success" | "error";
+    text: string;
+  } | null>(null);
   const [loading, setLoading] = useState(true);
-
   const [form, setForm] = useState<HotelForm>(emptyForm);
-
-  // if null = add hotel mode, otherwise edit mode
   const [editingHotelID, setEditingHotelID] = useState<number | null>(null);
 
   async function fetchHotels() {
     try {
       setLoading(true);
-
       const response = await fetch("/api/hotels");
       const data = await response.json();
-
       if (!response.ok) {
-        setMessage(data.error || "Could not load hotels.");
+        setMessage({
+          type: "error",
+          text: data.error || "Could not load hotels.",
+        });
         return;
       }
-
       setHotels(data);
-    } catch (error) {
-      setMessage("Failed to load hotels.");
+    } catch {
+      setMessage({ type: "error", text: "Failed to load hotels." });
     } finally {
       setLoading(false);
     }
@@ -91,30 +94,23 @@ export default function HotelsPage() {
 
   const filteredHotels = useMemo(() => {
     const q = search.trim().toLowerCase();
-
     if (!q) return hotels;
-
-    return hotels.filter((hotel) => {
-      return (
-        hotel.hotelID.toString().includes(q) ||
-        hotel.hotelName.toLowerCase().includes(q) ||
-        hotel.city.toLowerCase().includes(q) ||
-        hotel.province.toLowerCase().includes(q) ||
-        hotel.chainName.toLowerCase().includes(q) ||
-        hotel.chainID.toString().includes(q)
-      );
-    });
+    return hotels.filter(
+      (h) =>
+        h.hotelID.toString().includes(q) ||
+        h.hotelName.toLowerCase().includes(q) ||
+        h.city.toLowerCase().includes(q) ||
+        h.province.toLowerCase().includes(q) ||
+        h.chainName.toLowerCase().includes(q) ||
+        h.chainID.toString().includes(q),
+    );
   }, [hotels, search]);
 
   function handleChange(
-    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
+    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>,
   ) {
     const { name, value } = e.target;
-
-    setForm((prev) => ({
-      ...prev,
-      [name]: value,
-    }));
+    setForm((prev) => ({ ...prev, [name]: value }));
   }
 
   function resetForm() {
@@ -139,418 +135,367 @@ export default function HotelsPage() {
       chainEmail: hotel.chainEmail || "",
       chainPhone: hotel.chainPhone || "",
     });
-
-    setMessage("");
+    setMessage(null);
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    setMessage("");
-
+    setMessage(null);
     try {
       const isEditing = editingHotelID !== null;
-
       const response = await fetch(
         isEditing ? `/api/hotels/${editingHotelID}` : "/api/hotels",
         {
           method: isEditing ? "PUT" : "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
+          headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             ...form,
             category: Number(form.category),
             chainID: Number(form.chainID),
           }),
-        }
+        },
       );
-
       const data = await response.json();
-
       if (!response.ok) {
-        setMessage(data.error || "Could not save hotel.");
+        setMessage({
+          type: "error",
+          text: data.error || "Could not save hotel.",
+        });
         return;
       }
-
-      setMessage(
-        isEditing
-          ? `Hotel ${editingHotelID} updated successfully.`
-          : `Hotel added successfully.`
-      );
-
+      setMessage({
+        type: "success",
+        text: isEditing
+          ? `Hotel ${editingHotelID} updated.`
+          : "Hotel added successfully.",
+      });
       resetForm();
       fetchHotels();
-    } catch (error) {
-      setMessage("Something went wrong while saving the hotel.");
+    } catch {
+      setMessage({ type: "error", text: "Something went wrong." });
     }
   }
 
   async function handleDelete(hotelID: number) {
-    const confirmed = window.confirm(
-      `Are you sure you want to delete hotel ${hotelID}?`
-    );
-
-    if (!confirmed) return;
-
-    setMessage("");
-
+    if (!window.confirm(`Delete hotel ${hotelID}?`)) return;
+    setMessage(null);
     try {
       const response = await fetch(`/api/hotels/${hotelID}`, {
         method: "DELETE",
       });
-
       const data = await response.json();
-
       if (!response.ok) {
-        setMessage(data.error || "Could not delete hotel.");
+        setMessage({
+          type: "error",
+          text: data.error || "Could not delete hotel.",
+        });
         return;
       }
-
-      setMessage(`Hotel ${hotelID} deleted successfully.`);
-
-      if (editingHotelID === hotelID) {
-        resetForm();
-      }
-
+      setMessage({ type: "success", text: `Hotel ${hotelID} deleted.` });
+      if (editingHotelID === hotelID) resetForm();
       fetchHotels();
-    } catch (error) {
-      setMessage("Something went wrong while deleting the hotel.");
+    } catch {
+      setMessage({ type: "error", text: "Something went wrong." });
     }
   }
 
   return (
-    <main className="min-h-screen bg-gray-100">
+    <main className="min-h-screen bg-gray-50">
       <div className="flex min-h-screen">
-        <aside className="flex w-72 flex-col border-r border-gray-200 bg-white">
-          <div className="border-b border-gray-200 p-6">
-            <h1 className="text-2xl font-bold text-gray-900">e-Hotels</h1>
-            <p className="text-sm text-gray-500">Management System</p>
+        <Sidebar role="employee" />
+
+        <section className="flex-1 overflow-auto">
+          <div className="border-b border-gray-200 bg-white px-8 py-6">
+            <h2 className="text-3xl font-bold text-gray-900">
+              Hotel Management
+            </h2>
+            <p className="mt-1 text-sm text-gray-500">
+              View, add, edit, and delete hotel records
+            </p>
           </div>
 
-          <div className="border-b border-gray-200 p-4">
-            <div className="flex gap-2">
-              <button className="flex-1 rounded-xl bg-gray-100 px-4 py-2 text-sm font-medium text-gray-600">
-                Customer
-              </button>
-              <button className="flex-1 rounded-xl bg-blue-600 px-4 py-2 text-sm font-medium text-white">
-                Employee
-              </button>
+          <div className="border-b border-gray-200 bg-white px-8">
+            <div className="flex gap-6">
+              {[
+                { label: "Customers", href: "/employee/management/customers" },
+                { label: "Employees", href: "/employee/management/employees" },
+                { label: "Hotels", href: "/employee/management/hotels" },
+                { label: "Rooms", href: "/employee/management/rooms" },
+              ].map((tab) => (
+                <a
+                  key={tab.href}
+                  href={tab.href}
+                  className={`border-b-2 py-3.5 text-sm font-semibold transition ${
+                    tab.label === "Hotels"
+                      ? "border-blue-600 text-blue-600"
+                      : "border-transparent text-gray-500 hover:text-gray-700"
+                  }`}
+                >
+                  {tab.label}
+                </a>
+              ))}
             </div>
           </div>
 
-          <nav className="flex-1 space-y-2 p-4">
-            <Link
-              href="/employee#management"
-              className="block rounded-xl bg-blue-50 px-4 py-3 font-medium text-blue-700"
-            >
-              Management
-            </Link>
-
-            <Link
-              href="/employee/management/customers"
-              className="block rounded-xl px-4 py-3 font-medium text-gray-700 transition hover:bg-gray-100"
-            >
-              Customers
-            </Link>
-
-            <Link
-              href="/employee/management/employees"
-              className="block rounded-xl px-4 py-3 font-medium text-gray-700 transition hover:bg-gray-100"
-            >
-              Employees
-            </Link>
-
-            <Link
-              href="/employee/management/hotels"
-              className="block rounded-xl bg-blue-50 px-4 py-3 font-medium text-blue-700"
-            >
-              Hotels
-            </Link>
-
-            <Link
-              href="/employee/management/rooms"
-              className="block rounded-xl px-4 py-3 font-medium text-gray-700 transition hover:bg-gray-100"
-            >
-              Rooms
-            </Link>
-          </nav>
-        </aside>
-
-        <section className="flex flex-1 justify-center p-8">
-          <div className="w-full max-w-6xl">
-            <header className="mb-6">
-              <h2 className="text-4xl font-bold text-gray-900">
-                Hotel Management
-              </h2>
-              <p className="mt-2 text-gray-600">
-                View, add, edit, and delete hotel records
-              </p>
-            </header>
-
+          <div className="p-8">
             {message && (
-              <div className="mb-6 rounded-xl border border-blue-200 bg-blue-50 p-4 text-sm text-blue-800">
-                {message}
+              <div
+                className={`mb-6 rounded-xl border px-4 py-3 text-sm font-medium ${
+                  message.type === "success"
+                    ? "border-green-200 bg-green-50 text-green-700"
+                    : "border-red-200 bg-red-50 text-red-700"
+                }`}
+              >
+                {message.text}
               </div>
             )}
 
-            {/* Add / Edit form */}
-            <section className="mb-8 rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
-              <div className="mb-4 flex items-center justify-between">
-                <h3 className="text-2xl font-bold text-gray-900">
+            {/* Form */}
+            <div className="mb-6 rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
+              <div className="mb-5 flex items-center justify-between">
+                <h3 className="text-base font-semibold text-gray-900">
                   {editingHotelID
                     ? `Edit Hotel #${editingHotelID}`
                     : "Add New Hotel"}
                 </h3>
-
                 {editingHotelID && (
                   <button
                     onClick={resetForm}
-                    className="rounded-xl bg-gray-200 px-4 py-2 text-sm font-semibold text-gray-700 transition hover:bg-gray-300"
+                    className="rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-semibold text-gray-600 hover:bg-gray-50"
                   >
                     Cancel Edit
                   </button>
                 )}
               </div>
 
-              <form onSubmit={handleSubmit} className="grid gap-4 md:grid-cols-2">
+              <form
+                onSubmit={handleSubmit}
+                className="grid gap-4 md:grid-cols-2"
+              >
                 <div>
-                  <label className="mb-2 block text-sm font-semibold text-gray-700">
-                    Hotel Name
-                  </label>
+                  <label className={labelClass}>Hotel Name</label>
                   <input
                     name="hotelName"
                     value={form.hotelName}
                     onChange={handleChange}
                     required
-                    className="w-full rounded-lg border p-3 text-black placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className={inputClass}
                   />
                 </div>
-
                 <div>
-                  <label className="mb-2 block text-sm font-semibold text-gray-700">
-                    Category
-                  </label>
+                  <label className={labelClass}>Category</label>
                   <select
                     name="category"
                     value={form.category}
                     onChange={handleChange}
                     required
-                    className="w-full rounded-lg border p-3 text-black focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className={inputClass}
                   >
                     <option value="">Select category</option>
-                    <option value="1">1 star</option>
-                    <option value="2">2 star</option>
-                    <option value="3">3 star</option>
-                    <option value="4">4 star</option>
-                    <option value="5">5 star</option>
+                    {[1, 2, 3, 4, 5].map((n) => (
+                      <option key={n} value={n}>
+                        {n} star
+                      </option>
+                    ))}
                   </select>
                 </div>
-
                 <div className="md:col-span-2">
-                  <label className="mb-2 block text-sm font-semibold text-gray-700">
-                    Street
-                  </label>
+                  <label className={labelClass}>Street</label>
                   <input
                     name="street"
                     value={form.street}
                     onChange={handleChange}
                     required
-                    className="w-full rounded-lg border p-3 text-black placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className={inputClass}
                   />
                 </div>
-
                 <div>
-                  <label className="mb-2 block text-sm font-semibold text-gray-700">
-                    City
-                  </label>
+                  <label className={labelClass}>City</label>
                   <input
                     name="city"
                     value={form.city}
                     onChange={handleChange}
                     required
-                    className="w-full rounded-lg border p-3 text-black placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className={inputClass}
                   />
                 </div>
-
                 <div>
-                  <label className="mb-2 block text-sm font-semibold text-gray-700">
-                    Province
-                  </label>
+                  <label className={labelClass}>Province</label>
                   <input
                     name="province"
                     value={form.province}
                     onChange={handleChange}
                     required
-                    className="w-full rounded-lg border p-3 text-black placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className={inputClass}
                   />
                 </div>
-
                 <div>
-                  <label className="mb-2 block text-sm font-semibold text-gray-700">
-                    Postal Code
-                  </label>
+                  <label className={labelClass}>Postal Code</label>
                   <input
                     name="postalCode"
                     value={form.postalCode}
                     onChange={handleChange}
                     required
-                    className="w-full rounded-lg border p-3 text-black placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className={inputClass}
                   />
                 </div>
-
                 <div>
-                  <label className="mb-2 block text-sm font-semibold text-gray-700">
-                    Hotel Email
-                  </label>
+                  <label className={labelClass}>Hotel Email</label>
                   <input
                     type="email"
                     name="hotelEmail"
                     value={form.hotelEmail}
                     onChange={handleChange}
-                    className="w-full rounded-lg border p-3 text-black placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className={inputClass}
                   />
                 </div>
-
-                <div className="md:col-span-2">
-                  <label className="mb-2 block text-sm font-semibold text-gray-700">
-                    Hotel Phone
-                  </label>
+                <div>
+                  <label className={labelClass}>Hotel Phone</label>
                   <input
                     name="hotelPhone"
                     value={form.hotelPhone}
                     onChange={handleChange}
-                    className="w-full rounded-lg border p-3 text-black placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className={inputClass}
                   />
                 </div>
 
-                <div className="md:col-span-2 mt-2">
-                  <h4 className="text-lg font-bold text-gray-900">
+                {/* Divider */}
+                <div className="md:col-span-2 pt-2">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">
                     Chain Information
-                  </h4>
+                  </p>
+                  <div className="mt-2 border-t border-gray-100" />
                 </div>
 
                 <div>
-                  <label className="mb-2 block text-sm font-semibold text-gray-700">
-                    Chain ID
-                  </label>
+                  <label className={labelClass}>Chain ID</label>
                   <input
                     type="number"
                     name="chainID"
                     value={form.chainID}
                     onChange={handleChange}
                     required
-                    className="w-full rounded-lg border p-3 text-black placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className={inputClass}
                   />
                 </div>
-
                 <div>
-                  <label className="mb-2 block text-sm font-semibold text-gray-700">
-                    Chain Name
-                  </label>
+                  <label className={labelClass}>Chain Name</label>
                   <input
                     name="chainName"
                     value={form.chainName}
                     onChange={handleChange}
                     required
-                    className="w-full rounded-lg border p-3 text-black placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className={inputClass}
                   />
                 </div>
-
                 <div className="md:col-span-2">
-                  <label className="mb-2 block text-sm font-semibold text-gray-700">
-                    Central Office Address
-                  </label>
+                  <label className={labelClass}>Central Office Address</label>
                   <input
                     name="centralOfficeAddress"
                     value={form.centralOfficeAddress}
                     onChange={handleChange}
                     required
-                    className="w-full rounded-lg border p-3 text-black placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className={inputClass}
                   />
                 </div>
-
                 <div>
-                  <label className="mb-2 block text-sm font-semibold text-gray-700">
-                    Chain Email
-                  </label>
+                  <label className={labelClass}>Chain Email</label>
                   <input
                     type="email"
                     name="chainEmail"
                     value={form.chainEmail}
                     onChange={handleChange}
-                    className="w-full rounded-lg border p-3 text-black placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className={inputClass}
                   />
                 </div>
-
                 <div>
-                  <label className="mb-2 block text-sm font-semibold text-gray-700">
-                    Chain Phone
-                  </label>
+                  <label className={labelClass}>Chain Phone</label>
                   <input
                     name="chainPhone"
                     value={form.chainPhone}
                     onChange={handleChange}
-                    className="w-full rounded-lg border p-3 text-black placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className={inputClass}
                   />
                 </div>
-
                 <div className="md:col-span-2">
                   <button
                     type="submit"
-                    className="rounded-xl bg-blue-600 px-6 py-3 font-semibold text-white transition hover:bg-blue-700"
+                    className="rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-blue-700"
                   >
                     {editingHotelID ? "Save Changes" : "Add Hotel"}
                   </button>
                 </div>
               </form>
-            </section>
+            </div>
 
             {/* Search */}
-            <section className="mb-8 rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
-              <label
-                htmlFor="search-hotels"
-                className="mb-3 block text-lg font-semibold text-gray-700"
-              >
+            <div className="mb-6 rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
+              <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-gray-700">
+                <svg
+                  className="h-4 w-4 text-gray-400"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  strokeWidth={2}
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M21 21l-4.35-4.35M17 11A6 6 0 115 11a6 6 0 0112 0z"
+                  />
+                </svg>
                 Search Hotels
-              </label>
-
+              </div>
               <input
-                id="search-hotels"
                 type="text"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 placeholder="Search by hotel name, city, province, chain name, hotel ID, or chain ID..."
-                className="w-full rounded-lg border p-3 text-black placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className={inputClass}
               />
-            </section>
+            </div>
 
-            {/* Hotel table */}
-            <section className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
+            {/* Table */}
+            <div className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
               <div className="overflow-x-auto">
-                <table className="min-w-full text-left">
-                  <thead className="bg-gray-50 text-sm uppercase tracking-wide text-gray-500">
-                    <tr>
-                      <th className="px-6 py-4 font-semibold">Hotel ID</th>
-                      <th className="px-6 py-4 font-semibold">Hotel Name</th>
-                      <th className="px-6 py-4 font-semibold">City</th>
-                      <th className="px-6 py-4 font-semibold">Province</th>
-                      <th className="px-6 py-4 font-semibold">Category</th>
-                      <th className="px-6 py-4 font-semibold">Chain</th>
-                      <th className="px-6 py-4 font-semibold">Actions</th>
+                <table className="min-w-full text-left text-sm">
+                  <thead>
+                    <tr className="border-b border-gray-200">
+                      {[
+                        "Hotel ID",
+                        "Hotel Name",
+                        "City",
+                        "Province",
+                        "Category",
+                        "Chain",
+                        "Actions",
+                      ].map((col) => (
+                        <th
+                          key={col}
+                          className="px-6 py-3.5 text-xs font-semibold uppercase tracking-wider text-gray-500"
+                        >
+                          {col}
+                        </th>
+                      ))}
                     </tr>
                   </thead>
-
                   <tbody>
                     {loading ? (
-                      <tr className="border-t border-gray-200">
-                        <td colSpan={7} className="px-6 py-8 text-center text-gray-500">
+                      <tr>
+                        <td
+                          colSpan={7}
+                          className="px-6 py-10 text-center text-sm text-gray-400"
+                        >
                           Loading hotels...
                         </td>
                       </tr>
                     ) : filteredHotels.length === 0 ? (
-                      <tr className="border-t border-gray-200">
-                        <td colSpan={7} className="px-6 py-8 text-center text-gray-500">
+                      <tr>
+                        <td
+                          colSpan={7}
+                          className="px-6 py-10 text-center text-sm text-gray-400"
+                        >
                           No hotels found.
                         </td>
                       </tr>
@@ -558,26 +503,37 @@ export default function HotelsPage() {
                       filteredHotels.map((hotel) => (
                         <tr
                           key={hotel.hotelID}
-                          className="border-t border-gray-200 text-base text-gray-800"
+                          className="border-t border-gray-100 hover:bg-gray-50"
                         >
-                          <td className="px-6 py-5 font-medium">{hotel.hotelID}</td>
-                          <td className="px-6 py-5">{hotel.hotelName}</td>
-                          <td className="px-6 py-5">{hotel.city}</td>
-                          <td className="px-6 py-5">{hotel.province}</td>
-                          <td className="px-6 py-5">{hotel.category}</td>
-                          <td className="px-6 py-5">{hotel.chainName}</td>
-                          <td className="px-6 py-5">
-                            <div className="flex gap-3">
+                          <td className="px-6 py-4 font-medium text-gray-900">
+                            {hotel.hotelID}
+                          </td>
+                          <td className="px-6 py-4 text-gray-700">
+                            {hotel.hotelName}
+                          </td>
+                          <td className="px-6 py-4 text-gray-700">
+                            {hotel.city}
+                          </td>
+                          <td className="px-6 py-4 text-gray-700">
+                            {hotel.province}
+                          </td>
+                          <td className="px-6 py-4 text-gray-700">
+                            {"★".repeat(hotel.category)}
+                          </td>
+                          <td className="px-6 py-4 text-gray-700">
+                            {hotel.chainName}
+                          </td>
+                          <td className="px-6 py-4">
+                            <div className="flex gap-2">
                               <button
                                 onClick={() => startEdit(hotel)}
-                                className="rounded-xl bg-blue-600 px-4 py-2 font-semibold text-white transition hover:bg-blue-700"
+                                className="rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-blue-700"
                               >
                                 Edit
                               </button>
-
                               <button
                                 onClick={() => handleDelete(hotel.hotelID)}
-                                className="rounded-xl bg-red-600 px-4 py-2 font-semibold text-white transition hover:bg-red-700"
+                                className="rounded-lg bg-red-500 px-3 py-1.5 text-xs font-semibold text-white hover:bg-red-600"
                               >
                                 Delete
                               </button>
@@ -589,7 +545,7 @@ export default function HotelsPage() {
                   </tbody>
                 </table>
               </div>
-            </section>
+            </div>
           </div>
         </section>
       </div>

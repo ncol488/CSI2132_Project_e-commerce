@@ -1,9 +1,7 @@
 "use client";
 
-import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-
-//add and list employees, similar to customer management page
+import Sidebar from "@/app/components/sidebar";
 
 type EmployeeRow = {
   employeeID: number;
@@ -42,31 +40,39 @@ const emptyForm: EmployeeForm = {
   roleName: "",
 };
 
+const inputClass =
+  "w-full rounded-lg border border-gray-200 px-3 py-2.5 text-sm text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500";
+const labelClass =
+  "mb-1.5 block text-xs font-semibold uppercase tracking-wide text-gray-500";
+
 export default function EmployeeManagementPage() {
   const [employees, setEmployees] = useState<EmployeeRow[]>([]);
   const [search, setSearch] = useState("");
-  const [message, setMessage] = useState("");
+  const [message, setMessage] = useState<{
+    type: "success" | "error";
+    text: string;
+  } | null>(null);
   const [loading, setLoading] = useState(true);
-
   const [form, setForm] = useState<EmployeeForm>(emptyForm);
-  const [editingEmployeeID, setEditingEmployeeID] = useState<number | null>(null);
+  const [editingEmployeeID, setEditingEmployeeID] = useState<number | null>(
+    null,
+  );
 
   async function fetchEmployees() {
     try {
       setLoading(true);
-      setMessage("");
-
       const response = await fetch("/api/employees");
       const data = await response.json();
-
       if (!response.ok) {
-        setMessage(data.error || "Could not load employees.");
+        setMessage({
+          type: "error",
+          text: data.error || "Could not load employees.",
+        });
         return;
       }
-
       setEmployees(data);
-    } catch (error) {
-      setMessage("Failed to load employees.");
+    } catch {
+      setMessage({ type: "error", text: "Failed to load employees." });
     } finally {
       setLoading(false);
     }
@@ -78,33 +84,24 @@ export default function EmployeeManagementPage() {
 
   const filteredEmployees = useMemo(() => {
     const q = search.trim().toLowerCase();
-
     if (!q) return employees;
-
-    return employees.filter((employee) => {
-      const fullName = `${employee.firstName} ${employee.lastName}`.toLowerCase();
-
+    return employees.filter((e) => {
+      const fullName = `${e.firstName} ${e.lastName}`.toLowerCase();
       return (
-        employee.employeeID.toString().includes(q) ||
+        e.employeeID.toString().includes(q) ||
         fullName.includes(q) ||
-        employee.city.toLowerCase().includes(q) ||
-        employee.province.toLowerCase().includes(q) ||
-        employee.ssnSin.toLowerCase().includes(q) ||
-        employee.hotelID.toString().includes(q) ||
-        (employee.roleName || "").toLowerCase().includes(q)
+        e.city.toLowerCase().includes(q) ||
+        e.province.toLowerCase().includes(q) ||
+        e.ssnSin.toLowerCase().includes(q) ||
+        e.hotelID.toString().includes(q) ||
+        (e.roleName || "").toLowerCase().includes(q)
       );
     });
   }, [employees, search]);
 
-  function handleChange(
-    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
-  ) {
+  function handleChange(e: React.ChangeEvent<HTMLInputElement>) {
     const { name, value } = e.target;
-
-    setForm((prev) => ({
-      ...prev,
-      [name]: value,
-    }));
+    setForm((prev) => ({ ...prev, [name]: value }));
   }
 
   function resetForm() {
@@ -114,7 +111,6 @@ export default function EmployeeManagementPage() {
 
   function startEdit(employee: EmployeeRow) {
     setEditingEmployeeID(employee.employeeID);
-
     setForm({
       firstName: employee.firstName,
       lastName: employee.lastName,
@@ -126,414 +122,369 @@ export default function EmployeeManagementPage() {
       hotelID: String(employee.hotelID),
       roleName: employee.roleName || "",
     });
-
-    setMessage("");
+    setMessage(null);
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    setMessage("");
-
+    setMessage(null);
     try {
-      const payload = {
-        firstName: form.firstName,
-        lastName: form.lastName,
-        street: form.street,
-        city: form.city,
-        province: form.province,
-        postalCode: form.postalCode,
-        ssnSin: form.ssnSin,
-        hotelID: Number(form.hotelID),
-        roleName: form.roleName,
-      };
-
       const isEditing = editingEmployeeID !== null;
-
+      const payload = { ...form, hotelID: Number(form.hotelID) };
       const response = await fetch(
         isEditing ? `/api/employees/${editingEmployeeID}` : "/api/employees",
         {
           method: isEditing ? "PUT" : "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
+          headers: { "Content-Type": "application/json" },
           body: JSON.stringify(payload),
-        }
+        },
       );
-
       const data = await response.json();
-
       if (!response.ok) {
-        setMessage(data.error || "Could not save employee.");
+        setMessage({
+          type: "error",
+          text: data.error || "Could not save employee.",
+        });
         return;
       }
-
-      setMessage(
-        isEditing
-          ? `Employee ${editingEmployeeID} updated successfully.`
-          : `Employee created successfully with ID ${data.employeeID}.`
-      );
-
+      setMessage({
+        type: "success",
+        text: isEditing
+          ? `Employee ${editingEmployeeID} updated.`
+          : `Employee created with ID ${data.employeeID}.`,
+      });
       resetForm();
       fetchEmployees();
-    } catch (error) {
-      setMessage("Something went wrong while saving the employee.");
+    } catch {
+      setMessage({ type: "error", text: "Something went wrong." });
     }
   }
 
   async function handleDelete(employeeID: number) {
-    const confirmed = window.confirm(
-      `Are you sure you want to delete employee ${employeeID}?`
-    );
-
-    if (!confirmed) return;
-
-    setMessage("");
-
+    if (!window.confirm(`Delete employee ${employeeID}?`)) return;
+    setMessage(null);
     try {
       const response = await fetch(`/api/employees/${employeeID}`, {
         method: "DELETE",
       });
-
       const data = await response.json();
-
       if (!response.ok) {
-        setMessage(data.error || "Could not delete employee.");
+        setMessage({
+          type: "error",
+          text: data.error || "Could not delete employee.",
+        });
         return;
       }
-
-      setMessage(`Employee ${employeeID} deleted successfully.`);
-
-      if (editingEmployeeID === employeeID) {
-        resetForm();
-      }
-
+      setMessage({ type: "success", text: `Employee ${employeeID} deleted.` });
+      if (editingEmployeeID === employeeID) resetForm();
       fetchEmployees();
-    } catch (error) {
-      setMessage("Something went wrong while deleting the employee.");
+    } catch {
+      setMessage({ type: "error", text: "Something went wrong." });
     }
   }
 
   return (
-    <main className="min-h-screen bg-gray-100">
+    <main className="min-h-screen bg-gray-50">
       <div className="flex min-h-screen">
-        <aside className="flex w-72 flex-col border-r border-gray-200 bg-white">
-          <div className="border-b border-gray-200 p-6">
-            <h1 className="text-2xl font-bold text-gray-900">e-Hotels</h1>
-            <p className="text-sm text-gray-500">Management System</p>
-          </div>
+        <Sidebar role="employee" />
 
-          <div className="border-b border-gray-200 p-4">
-            <div className="flex gap-2">
-              <Link
-                href="/"
-                className="flex-1 rounded-xl bg-gray-100 px-4 py-2 text-center text-sm font-medium text-gray-600"
-              >
-                Customer
-              </Link>
-
-              <Link
-                href="/employee"
-                className="flex-1 rounded-xl bg-blue-600 px-4 py-2 text-center text-sm font-medium text-white"
-              >
-                Employee
-              </Link>
-            </div>
-          </div>
-
-          <nav className="flex-1 space-y-2 p-4">
-
-            <Link
-              href="/employee#management"
-              className="block rounded-xl bg-blue-50 px-4 py-3 font-medium text-blue-700"
-            >
-              Management
-            </Link>
-
-            <Link
-              href="/employee/management/customers"
-              className="block rounded-xl px-4 py-3 font-medium text-gray-700 transition hover:bg-gray-100"
-            >
-              Customers
-            </Link>
-
-            <Link
-              href="/employee/management/employees"
-              className="block rounded-xl bg-blue-50 px-4 py-3 font-medium text-blue-700"
-            >
-              Employees
-            </Link>
-
-            <Link
-              href="/employee/management/hotels"
-              className="block rounded-xl px-4 py-3 font-medium text-gray-700 transition hover:bg-gray-100"
-            >
-              Hotels
-            </Link>
-
-            <Link
-              href="/employee/management/rooms"
-              className="block rounded-xl px-4 py-3 font-medium text-gray-700 transition hover:bg-gray-100"
-            >
-              Rooms
-            </Link>
-          </nav>
-
-        </aside>
-
-        <section className="flex-1 p-8">
-          <header className="mb-6">
-            <h2 className="text-4xl font-bold text-gray-900">Employee Management</h2>
-            <p className="mt-2 text-gray-600">
+        <section className="flex-1 overflow-auto">
+          <div className="border-b border-gray-200 bg-white px-8 py-6">
+            <h2 className="text-3xl font-bold text-gray-900">
+              Employee Management
+            </h2>
+            <p className="mt-1 text-sm text-gray-500">
               View, add, edit, and delete employee records
             </p>
-          </header>
+          </div>
 
-          {message && (
-            <div className="mb-6 rounded-xl border border-blue-200 bg-blue-50 p-4 text-sm text-blue-800">
-              {message}
-            </div>
-          )}
-
-          {/* Add and Edit form */}
-          <section className="mb-8 rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
-            <div className="mb-4 flex items-center justify-between">
-              <h3 className="text-2xl font-bold text-gray-900">
-                {editingEmployeeID
-                  ? `Edit Employee #${editingEmployeeID}`
-                  : "Add New Employee"}
-              </h3>
-
-              {editingEmployeeID && (
-                <button
-                  onClick={resetForm}
-                  className="rounded-xl bg-gray-200 px-4 py-2 text-sm font-semibold text-gray-700 transition hover:bg-gray-300"
+          <div className="border-b border-gray-200 bg-white px-8">
+            <div className="flex gap-6">
+              {[
+                { label: "Customers", href: "/employee/management/customers" },
+                { label: "Employees", href: "/employee/management/employees" },
+                { label: "Hotels", href: "/employee/management/hotels" },
+                { label: "Rooms", href: "/employee/management/rooms" },
+              ].map((tab) => (
+                <a
+                  key={tab.href}
+                  href={tab.href}
+                  className={`border-b-2 py-3.5 text-sm font-semibold transition ${
+                    tab.label === "Employees"
+                      ? "border-blue-600 text-blue-600"
+                      : "border-transparent text-gray-500 hover:text-gray-700"
+                  }`}
                 >
-                  Cancel Edit
-                </button>
-              )}
+                  {tab.label}
+                </a>
+              ))}
+            </div>
+          </div>
+
+          <div className="p-8">
+            {message && (
+              <div
+                className={`mb-6 rounded-xl border px-4 py-3 text-sm font-medium ${
+                  message.type === "success"
+                    ? "border-green-200 bg-green-50 text-green-700"
+                    : "border-red-200 bg-red-50 text-red-700"
+                }`}
+              >
+                {message.text}
+              </div>
+            )}
+
+            {/* Form */}
+            <div className="mb-6 rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
+              <div className="mb-5 flex items-center justify-between">
+                <h3 className="text-base font-semibold text-gray-900">
+                  {editingEmployeeID
+                    ? `Edit Employee #${editingEmployeeID}`
+                    : "Add New Employee"}
+                </h3>
+                {editingEmployeeID && (
+                  <button
+                    onClick={resetForm}
+                    className="rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-semibold text-gray-600 hover:bg-gray-50"
+                  >
+                    Cancel Edit
+                  </button>
+                )}
+              </div>
+
+              <form
+                onSubmit={handleSubmit}
+                className="grid gap-4 md:grid-cols-2"
+              >
+                <div>
+                  <label className={labelClass}>First Name</label>
+                  <input
+                    name="firstName"
+                    value={form.firstName}
+                    onChange={handleChange}
+                    required
+                    className={inputClass}
+                  />
+                </div>
+                <div>
+                  <label className={labelClass}>Last Name</label>
+                  <input
+                    name="lastName"
+                    value={form.lastName}
+                    onChange={handleChange}
+                    required
+                    className={inputClass}
+                  />
+                </div>
+                <div className="md:col-span-2">
+                  <label className={labelClass}>Street</label>
+                  <input
+                    name="street"
+                    value={form.street}
+                    onChange={handleChange}
+                    required
+                    className={inputClass}
+                  />
+                </div>
+                <div>
+                  <label className={labelClass}>City</label>
+                  <input
+                    name="city"
+                    value={form.city}
+                    onChange={handleChange}
+                    required
+                    className={inputClass}
+                  />
+                </div>
+                <div>
+                  <label className={labelClass}>Province</label>
+                  <input
+                    name="province"
+                    value={form.province}
+                    onChange={handleChange}
+                    required
+                    className={inputClass}
+                  />
+                </div>
+                <div>
+                  <label className={labelClass}>Postal Code</label>
+                  <input
+                    name="postalCode"
+                    value={form.postalCode}
+                    onChange={handleChange}
+                    required
+                    className={inputClass}
+                  />
+                </div>
+                <div>
+                  <label className={labelClass}>SSN / SIN</label>
+                  <input
+                    name="ssnSin"
+                    value={form.ssnSin}
+                    onChange={handleChange}
+                    required
+                    className={inputClass}
+                  />
+                </div>
+                <div>
+                  <label className={labelClass}>Hotel ID</label>
+                  <input
+                    name="hotelID"
+                    type="number"
+                    min="1"
+                    value={form.hotelID}
+                    onChange={handleChange}
+                    required
+                    className={inputClass}
+                  />
+                </div>
+                <div className="md:col-span-2">
+                  <label className={labelClass}>Role Name</label>
+                  <input
+                    name="roleName"
+                    value={form.roleName}
+                    onChange={handleChange}
+                    required
+                    placeholder="e.g. Manager, Receptionist"
+                    className={inputClass}
+                  />
+                </div>
+                <div className="md:col-span-2">
+                  <button
+                    type="submit"
+                    className="rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-blue-700"
+                  >
+                    {editingEmployeeID ? "Save Changes" : "Add Employee"}
+                  </button>
+                </div>
+              </form>
             </div>
 
-            <form onSubmit={handleSubmit} className="grid gap-4 md:grid-cols-2">
-              <div>
-                <label className="mb-2 block text-sm font-semibold text-gray-700">
-                  First Name
-                </label>
-                <input
-                  name="firstName"
-                  value={form.firstName}
-                  onChange={handleChange}
-                  required
-                  className="w-full rounded-lg border p-3 text-black placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
-
-              <div>
-                <label className="mb-2 block text-sm font-semibold text-gray-700">
-                  Last Name
-                </label>
-                <input
-                  name="lastName"
-                  value={form.lastName}
-                  onChange={handleChange}
-                  required
-                  className="w-full rounded-lg border p-3 text-black placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
-
-              <div className="md:col-span-2">
-                <label className="mb-2 block text-sm font-semibold text-gray-700">
-                  Street
-                </label>
-                <input
-                  name="street"
-                  value={form.street}
-                  onChange={handleChange}
-                  required
-                  className="w-full rounded-lg border p-3 text-black placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
-
-              <div>
-                <label className="mb-2 block text-sm font-semibold text-gray-700">
-                  City
-                </label>
-                <input
-                  name="city"
-                  value={form.city}
-                  onChange={handleChange}
-                  required
-                  className="w-full rounded-lg border p-3 text-black placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
-
-              <div>
-                <label className="mb-2 block text-sm font-semibold text-gray-700">
-                  Province
-                </label>
-                <input
-                  name="province"
-                  value={form.province}
-                  onChange={handleChange}
-                  required
-                  className="w-full rounded-lg border p-3 text-black placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
-
-              <div>
-                <label className="mb-2 block text-sm font-semibold text-gray-700">
-                  Postal Code
-                </label>
-                <input
-                  name="postalCode"
-                  value={form.postalCode}
-                  onChange={handleChange}
-                  required
-                  className="w-full rounded-lg border p-3 text-black placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
-
-              <div>
-                <label className="mb-2 block text-sm font-semibold text-gray-700">
-                  SSN / SIN
-                </label>
-                <input
-                  name="ssnSin"
-                  value={form.ssnSin}
-                  onChange={handleChange}
-                  required
-                  className="w-full rounded-lg border p-3 text-black placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
-
-              <div>
-                <label className="mb-2 block text-sm font-semibold text-gray-700">
-                  Hotel ID
-                </label>
-                <input
-                  name="hotelID"
-                  type="number"
-                  min="1"
-                  value={form.hotelID}
-                  onChange={handleChange}
-                  required
-                  className="w-full rounded-lg border p-3 text-black placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
-
-              <div className="md:col-span-2">
-                <label className="mb-2 block text-sm font-semibold text-gray-700">
-                  Role Name
-                </label>
-                <input
-                  name="roleName"
-                  value={form.roleName}
-                  onChange={handleChange}
-                  required
-                  placeholder="Enter any role name"
-                  className="w-full rounded-lg border p-3 text-black placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
-
-              <div className="md:col-span-2">
-                <button
-                  type="submit"
-                  className="rounded-xl bg-blue-600 px-6 py-3 font-semibold text-white transition hover:bg-blue-700"
+            {/* Search */}
+            <div className="mb-6 rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
+              <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-gray-700">
+                <svg
+                  className="h-4 w-4 text-gray-400"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  strokeWidth={2}
                 >
-                  {editingEmployeeID ? "Save Changes" : "Add Employee"}
-                </button>
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M21 21l-4.35-4.35M17 11A6 6 0 115 11a6 6 0 0112 0z"
+                  />
+                </svg>
+                Search Employees
               </div>
-            </form>
-          </section>
+              <input
+                type="text"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Search by name, city, province, employee ID, hotel ID, role, or SSN/SIN..."
+                className={inputClass}
+              />
+            </div>
 
-          {/* Search */}
-          <section className="mb-8 rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
-            <label
-              htmlFor="search-employees"
-              className="mb-3 block text-lg font-semibold text-gray-700"
-            >
-              Search Employees
-            </label>
-
-            <input
-              id="search-employees"
-              type="text"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search by name, city, province, employee ID, hotel ID, role, or SSN/SIN..."
-              className="w-full rounded-lg border p-3 text-black placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-          </section>
-
-          {/* Employee table */}
-          <section className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
-            <div className="overflow-x-auto">
-              <table className="min-w-full text-left">
-                <thead className="bg-gray-50 text-sm uppercase tracking-wide text-gray-500">
-                  <tr>
-                    <th className="px-6 py-4 font-semibold">Employee ID</th>
-                    <th className="px-6 py-4 font-semibold">Name</th>
-                    <th className="px-6 py-4 font-semibold">City</th>
-                    <th className="px-6 py-4 font-semibold">Province</th>
-                    <th className="px-6 py-4 font-semibold">Hotel ID</th>
-                    <th className="px-6 py-4 font-semibold">Role</th>
-                    <th className="px-6 py-4 font-semibold">SSN / SIN</th>
-                    <th className="px-6 py-4 font-semibold">Actions</th>
-                  </tr>
-                </thead>
-
-                <tbody>
-                  {loading ? (
-                    <tr className="border-t border-gray-200">
-                      <td colSpan={8} className="px-6 py-8 text-center text-gray-500">
-                        Loading employees...
-                      </td>
+            {/* Table */}
+            <div className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
+              <div className="overflow-x-auto">
+                <table className="min-w-full text-left text-sm">
+                  <thead>
+                    <tr className="border-b border-gray-200">
+                      {[
+                        "Employee ID",
+                        "Name",
+                        "City",
+                        "Province",
+                        "Hotel ID",
+                        "Role",
+                        "SSN / SIN",
+                        "Actions",
+                      ].map((col) => (
+                        <th
+                          key={col}
+                          className="px-6 py-3.5 text-xs font-semibold uppercase tracking-wider text-gray-500"
+                        >
+                          {col}
+                        </th>
+                      ))}
                     </tr>
-                  ) : filteredEmployees.length === 0 ? (
-                    <tr className="border-t border-gray-200">
-                      <td colSpan={8} className="px-6 py-8 text-center text-gray-500">
-                        No employees found.
-                      </td>
-                    </tr>
-                  ) : (
-                    filteredEmployees.map((employee) => (
-                      <tr
-                        key={employee.employeeID}
-                        className="border-t border-gray-200 text-base text-gray-800"
-                      >
-                        <td className="px-6 py-5 font-medium">{employee.employeeID}</td>
-                        <td className="px-6 py-5">
-                          {employee.firstName} {employee.lastName}
-                        </td>
-                        <td className="px-6 py-5">{employee.city}</td>
-                        <td className="px-6 py-5">{employee.province}</td>
-                        <td className="px-6 py-5">{employee.hotelID}</td>
-                        <td className="px-6 py-5">{employee.roleName || "No role"}</td>
-                        <td className="px-6 py-5">{employee.ssnSin}</td>
-                        <td className="px-6 py-5">
-                          <div className="flex gap-3">
-                            <button
-                              onClick={() => startEdit(employee)}
-                              className="rounded-xl bg-blue-600 px-4 py-2 font-semibold text-white transition hover:bg-blue-700"
-                            >
-                              Edit
-                            </button>
-
-                            <button
-                              onClick={() => handleDelete(employee.employeeID)}
-                              className="rounded-xl bg-red-600 px-4 py-2 font-semibold text-white transition hover:bg-red-700"
-                            >
-                              Delete
-                            </button>
-                          </div>
+                  </thead>
+                  <tbody>
+                    {loading ? (
+                      <tr>
+                        <td
+                          colSpan={8}
+                          className="px-6 py-10 text-center text-sm text-gray-400"
+                        >
+                          Loading employees...
                         </td>
                       </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
+                    ) : filteredEmployees.length === 0 ? (
+                      <tr>
+                        <td
+                          colSpan={8}
+                          className="px-6 py-10 text-center text-sm text-gray-400"
+                        >
+                          No employees found.
+                        </td>
+                      </tr>
+                    ) : (
+                      filteredEmployees.map((employee) => (
+                        <tr
+                          key={employee.employeeID}
+                          className="border-t border-gray-100 hover:bg-gray-50"
+                        >
+                          <td className="px-6 py-4 font-medium text-gray-900">
+                            {employee.employeeID}
+                          </td>
+                          <td className="px-6 py-4 text-gray-700">
+                            {employee.firstName} {employee.lastName}
+                          </td>
+                          <td className="px-6 py-4 text-gray-700">
+                            {employee.city}
+                          </td>
+                          <td className="px-6 py-4 text-gray-700">
+                            {employee.province}
+                          </td>
+                          <td className="px-6 py-4 text-gray-700">
+                            {employee.hotelID}
+                          </td>
+                          <td className="px-6 py-4 text-gray-700">
+                            {employee.roleName || "—"}
+                          </td>
+                          <td className="px-6 py-4 text-gray-700">
+                            {employee.ssnSin}
+                          </td>
+                          <td className="px-6 py-4">
+                            <div className="flex gap-2">
+                              <button
+                                onClick={() => startEdit(employee)}
+                                className="rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-blue-700"
+                              >
+                                Edit
+                              </button>
+                              <button
+                                onClick={() =>
+                                  handleDelete(employee.employeeID)
+                                }
+                                className="rounded-lg bg-red-500 px-3 py-1.5 text-xs font-semibold text-white hover:bg-red-600"
+                              >
+                                Delete
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
             </div>
-          </section>
+          </div>
         </section>
       </div>
     </main>

@@ -2,386 +2,359 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-
-//check in desk page
+import Sidebar from "@/app/components/sidebar";
 
 type BookingRow = {
-  bookingID: number;
-  customerName: string;
-  roomNumber: number | null;
-  startDate: string;
-  endDate: string;
+  bookingid: number;
+  customer_name_snapshot: string;
+  room_number: number | null;
+  start_date: string;
+  end_date: string;
   status: string;
 };
 
 type BookingDetails = {
-  bookingID: number;
-  customerID: number;
-  hotelID: number;
-  roomNumber: number;
-  startDate: string;
-  endDate: string;
+  bookingid: number;
+  customerid: number;
+  hotelid: number;
+  room_number: number;
+  start_date: string;
+  end_date: string;
   status: string;
-  customerName: string;
-  customerIdSnapshot: string;
-  roomSnapshot: string;
-  hotelSnapshot: string;
-  chainName: string;
+  customer_name_snapshot: string;
+  customer_id_snapshot: string;
+  room_snapshot: string;
+  hotel_snapshot: string;
+  chain_name_snapshot: string;
 };
 
 function formatBookingId(id: number) {
-  return `B${id.toString().padStart(3, "0")}`;
+  return `B${id?.toString().padStart(3, "0") || "000"}`;
 }
 
 function formatDate(dateString: string) {
+  if (!dateString) return "-";
   return new Date(dateString).toISOString().split("T")[0];
 }
 
 function getStatusBadge(status: string) {
-  const normalized = status.toLowerCase();
-
-  if (normalized === "confirmed") {
-    return "bg-green-100 text-green-700";
-  }
-
-  if (normalized === "pending") {
-    return "bg-yellow-100 text-yellow-700";
-  }
-
-  if (normalized === "checked-in" || normalized === "checked in") {
+  const normalized = status?.toLowerCase() || "";
+  if (normalized === "confirmed") return "bg-green-100 text-green-700";
+  if (normalized === "pending") return "bg-yellow-100 text-yellow-800";
+  if (normalized === "checked-in" || normalized === "checked in")
     return "bg-blue-100 text-blue-700";
-  }
-
   return "bg-gray-100 text-gray-700";
 }
 
 export default function CheckInPage() {
   const [search, setSearch] = useState("");
   const [bookingRows, setBookingRows] = useState<BookingRow[]>([]);
-  const [selectedBooking, setSelectedBooking] = useState<BookingDetails | null>(null);
-  const [message, setMessage] = useState("");
+  const [selectedBooking, setSelectedBooking] = useState<BookingDetails | null>(
+    null,
+  );
+  const [message, setMessage] = useState<{
+    type: "success" | "error" | "info";
+    text: string;
+  } | null>(null);
   const [loadingTable, setLoadingTable] = useState(true);
   const [loadingBookingId, setLoadingBookingId] = useState<number | null>(null);
 
+  // Load Bookings on Mount
   useEffect(() => {
     async function fetchBookings() {
       try {
         const response = await fetch("/api/bookings");
         const data = await response.json();
-
         if (!response.ok) {
-          setMessage(data.error || "Could not load bookings.");
+          setMessage({
+            type: "error",
+            text: data.error || "Could not load bookings.",
+          });
           return;
         }
-
-        setBookingRows(data);
-      } catch (error) {
-        setMessage("Failed to load bookings.");
+        // Handle both {bookings: []} and [] formats
+        const rows = data.bookings || (Array.isArray(data) ? data : []);
+        setBookingRows(rows);
+      } catch {
+        setMessage({ type: "error", text: "Failed to load bookings." });
       } finally {
         setLoadingTable(false);
       }
     }
-
     fetchBookings();
   }, []);
 
   const filteredRows = useMemo(() => {
     const q = search.trim().toLowerCase();
-
     if (!q) return bookingRows;
-
-    return bookingRows.filter((row) => {
-      return (
-        formatBookingId(row.bookingID).toLowerCase().includes(q) ||
-        row.bookingID.toString().includes(q) ||
-        row.customerName.toLowerCase().includes(q) ||
-        (row.roomNumber?.toString() ?? "").includes(q)
-      );
-    });
+    return bookingRows.filter(
+      (row) =>
+        formatBookingId(row.bookingid).toLowerCase().includes(q) ||
+        row.customer_name_snapshot?.toLowerCase().includes(q) ||
+        (row.room_number?.toString() ?? "").includes(q),
+    );
   }, [search, bookingRows]);
 
+  // Logic to show details for a specific booking
   async function handleViewDetails(bookingID: number) {
     setLoadingBookingId(bookingID);
-    setMessage("");
-
+    setMessage(null);
     try {
+      // Note: You must have an API route at /api/bookings/[id]/route.ts for this to work
       const response = await fetch(`/api/bookings/${bookingID}`);
       const data = await response.json();
-
       if (!response.ok) {
         setSelectedBooking(null);
-        setMessage(data.error || "Could not load booking details.");
+        setMessage({
+          type: "error",
+          text: data.error || "Could not load details.",
+        });
         return;
       }
-
       setSelectedBooking(data);
-    } catch (error) {
+    } catch {
       setSelectedBooking(null);
-      setMessage("Failed to load booking details.");
+      setMessage({ type: "error", text: "Failed to load details." });
     } finally {
       setLoadingBookingId(null);
     }
   }
 
-  //to change booking to a renting, from pressing button "Complete Check-In" 
-
-async function handleCheckIn() {
-  if (!selectedBooking) return;
-
-  setMessage("");
-
-  try {
-    const response = await fetch(
-      `/api/bookings/${selectedBooking.bookingID}/checkin`,
-      {
-        method: "POST",
+  async function handleCheckIn() {
+    if (!selectedBooking) return;
+    setMessage(null);
+    try {
+      const response = await fetch(
+        `/api/checkin/${selectedBooking.bookingid}`,
+        { method: "POST" },
+      );
+      const data = await response.json();
+      if (!response.ok) {
+        setMessage({ type: "error", text: data.error || "Check-in failed." });
+        return;
       }
-    );
+      setMessage({
+        type: "success",
+        text: `Check-in successful! Renting ID: ${data.rentingID}`,
+      });
 
-    const data = await response.json();
-
-    if (!response.ok) {
-      setMessage(data.error || "Check-in failed.");
-      return;
+      // Refresh Table
+      const refreshed = await fetch("/api/bookings");
+      const refreshedData = await refreshed.json();
+      setBookingRows(refreshedData.bookings || refreshedData);
+      setSelectedBooking(null);
+    } catch {
+      setMessage({ type: "error", text: "Something went wrong." });
     }
-
-    setMessage(
-      `Booking ${formatBookingId(
-        selectedBooking.bookingID
-      )} converted to renting ID ${data.rentingID}`
-    );
-
-    // refresh table
-    const refreshed = await fetch("/api/bookings");
-    setBookingRows(await refreshed.json());
-
-    setSelectedBooking(null);
-  } catch (error) {
-    console.error(error);
-    setMessage("Something went wrong.");
   }
-}
 
   return (
-    <main className="min-h-screen bg-gray-100">
-      <div className="flex min-h-screen">
-        <aside className="flex w-72 flex-col border-r border-gray-200 bg-white">
-          <div className="border-b border-gray-200 p-6">
-            <h1 className="text-2xl font-bold text-gray-900">e-Hotels</h1>
-            <p className="text-sm text-gray-500">Management System</p>
-          </div>
+    <main className="min-h-screen bg-gray-50 flex">
+      <Sidebar role="employee" />
 
-          <div className="border-b border-gray-200 p-4">
-            <div className="flex gap-2">
-              <button className="flex-1 rounded-xl bg-gray-100 px-4 py-2 text-sm font-medium text-gray-600">
-                Customer
-              </button>
-              <button className="flex-1 rounded-xl bg-blue-600 px-4 py-2 text-sm font-medium text-white">
-                Employee
-              </button>
-            </div>
-          </div>
+      <section className="flex-1 overflow-auto">
+        <div className="border-b border-gray-200 bg-white px-8 py-6">
+          <h2 className="text-3xl font-bold text-gray-900 tracking-tight">
+            Front Desk Operations
+          </h2>
+          <p className="mt-1 text-sm text-gray-500">
+            Check-in guests and manage reservations
+          </p>
+        </div>
 
-          <nav className="flex-1 space-y-2 p-4">
+        <div className="border-b border-gray-200 bg-white px-8">
+          <div className="flex gap-6">
             <Link
               href="/employee/checkin"
-              className="block rounded-xl bg-blue-50 px-4 py-3 font-medium text-blue-700"
+              className="border-b-2 border-blue-600 py-3.5 text-sm font-semibold text-blue-600"
             >
-              Front Desk
+              Check-In Desk
             </Link>
-
             <Link
-              href="/employee#management"
-              className="block rounded-xl px-4 py-3 font-medium text-gray-700 transition hover:bg-gray-100"
+              href="/employee/walkin"
+              className="border-b-2 border-transparent py-3.5 text-sm font-semibold text-gray-500 transition hover:text-gray-700"
             >
-              Management
+              Walk-In Renting
             </Link>
-
             <Link
-              href="/employee/reports"
-              className="block rounded-xl px-4 py-3 font-medium text-gray-700 transition hover:bg-gray-100"
+              href="/employee/rentings"
+              className="border-b-2 border-transparent py-3.5 text-sm font-semibold text-gray-500 transition hover:text-gray-700"
             >
-              Reports
+              All Rentings
             </Link>
-          </nav>
-
-        </aside>
-
-        <section className="flex-1 p-8">
-          <header className="mb-6">
-            <h2 className="text-4xl font-bold text-gray-900">Front Desk Operations</h2>
-            <p className="mt-2 text-gray-600">
-              Check-in guests, manage walk-in rentings, and view all rentings
-            </p>
-          </header>
-
-          <div className="mb-8 border-b border-gray-200">
-            <div className="flex gap-8">
-              <Link
-                href="/employee/checkin"
-                className="border-b-2 border-blue-600 px-1 py-3 text-lg font-semibold text-blue-600"
-              >
-                Check-In Desk
-              </Link>
-
-              <Link
-                href="/employee/walkin"
-                className="px-1 py-3 text-lg font-semibold text-gray-600 transition hover:text-gray-900"
-              >
-                Walk-In Renting
-              </Link>
-
-              <Link
-                href="/employee/rentings"
-                className="px-1 py-3 text-lg font-semibold text-gray-600 transition hover:text-gray-900"
-              >
-                All Rentings
-              </Link>
-            </div>
           </div>
+        </div>
 
-          <section className="mb-8 rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
-            <label
-              htmlFor="search-bookings"
-              className="mb-3 block text-lg font-semibold text-gray-700"
-            >
-              Search Bookings
+        <div className="p-8">
+          <div className="mb-6 rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
+            <label className="mb-2 block text-xs font-bold uppercase tracking-wider text-gray-400">
+              Search Reservations
             </label>
-
             <input
-              id="search-bookings"
               type="text"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search by customer name, room number or booking ID..."
-              className="w-full p-3 border rounded-lg
-            text-black                /* input text color */
-            placeholder-gray-500     /* darker placeholder */
-            focus:outline-none focus:ring-2 focus:ring-blue-500"
+              placeholder="Guest name or ID (e.g. B001)..."
+              className="w-full rounded-lg border border-gray-200 px-4 py-2.5 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
-          </section>
+          </div>
 
-          <section className="mb-8 overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
-            <div className="overflow-x-auto">
-              <table className="min-w-full text-left">
-                <thead className="bg-gray-50 text-sm uppercase tracking-wide text-gray-500">
+          <div className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
+            <table className="min-w-full text-left text-sm">
+              <thead>
+                <tr className="border-b border-gray-200 bg-gray-50/50">
+                  <th className="px-6 py-4 text-xs font-bold uppercase text-gray-500">
+                    ID
+                  </th>
+                  <th className="px-6 py-4 text-xs font-bold uppercase text-gray-500">
+                    Guest
+                  </th>
+                  <th className="px-6 py-4 text-xs font-bold uppercase text-gray-500">
+                    Room
+                  </th>
+                  <th className="px-6 py-4 text-xs font-bold uppercase text-gray-500">
+                    Dates
+                  </th>
+                  <th className="px-6 py-4 text-xs font-bold uppercase text-gray-500">
+                    Status
+                  </th>
+                  <th className="px-6 py-4 text-xs font-bold uppercase text-gray-500">
+                    Action
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                {loadingTable ? (
                   <tr>
-                    <th className="px-6 py-4 font-semibold">Booking ID</th>
-                    <th className="px-6 py-4 font-semibold">Customer Name</th>
-                    <th className="px-6 py-4 font-semibold">Room</th>
-                    <th className="px-6 py-4 font-semibold">Check-In</th>
-                    <th className="px-6 py-4 font-semibold">Check-Out</th>
-                    <th className="px-6 py-4 font-semibold">Status</th>
-                    <th className="px-6 py-4 font-semibold">Action</th>
+                    <td
+                      colSpan={6}
+                      className="px-6 py-10 text-center text-gray-400"
+                    >
+                      Loading bookings...
+                    </td>
                   </tr>
-                </thead>
-
-                <tbody>
-                  {loadingTable ? (
-                    <tr className="border-t border-gray-200">
-                      <td colSpan={7} className="px-6 py-8 text-center text-gray-500">
-                        Loading bookings...
+                ) : filteredRows.length === 0 ? (
+                  <tr>
+                    <td
+                      colSpan={6}
+                      className="px-6 py-10 text-center text-gray-400"
+                    >
+                      No matching reservations.
+                    </td>
+                  </tr>
+                ) : (
+                  filteredRows.map((row) => (
+                    <tr
+                      key={row.bookingid}
+                      className="hover:bg-gray-50 transition"
+                    >
+                      <td className="px-6 py-4 font-mono font-bold text-blue-600">
+                        {formatBookingId(row.bookingid)}
+                      </td>
+                      <td className="px-6 py-4 font-semibold text-gray-900">
+                        {row.customer_name_snapshot}
+                      </td>
+                      <td className="px-6 py-4 text-gray-600">
+                        {row.room_number ?? "-"}
+                      </td>
+                      <td className="px-6 py-4 text-xs text-gray-500">
+                        {formatDate(row.start_date)} to{" "}
+                        {formatDate(row.end_date)}
+                      </td>
+                      <td className="px-6 py-4">
+                        <span
+                          className={`rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide ${getStatusBadge(row.status)}`}
+                        >
+                          {row.status}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4">
+                        <button
+                          onClick={() => handleViewDetails(row.bookingid)}
+                          disabled={loadingBookingId === row.bookingid}
+                          className="rounded-lg border border-gray-200 bg-white px-4 py-2 text-xs font-bold text-gray-700 shadow-sm hover:bg-gray-50 disabled:opacity-50"
+                        >
+                          {loadingBookingId === row.bookingid
+                            ? "..."
+                            : "Details"}
+                        </button>
                       </td>
                     </tr>
-                  ) : filteredRows.length === 0 ? (
-                    <tr className="border-t border-gray-200">
-                      <td colSpan={7} className="px-6 py-8 text-center text-gray-500">
-                        No bookings match your search.
-                      </td>
-                    </tr>
-                  ) : (
-                    filteredRows.map((row) => (
-                      <tr
-                        key={row.bookingID}
-                        className="border-t border-gray-200 text-base text-gray-800"
-                      >
-                        <td className="px-6 py-5 font-medium">
-                          {formatBookingId(row.bookingID)}
-                        </td>
-                        <td className="px-6 py-5">{row.customerName}</td>
-                        <td className="px-6 py-5">{row.roomNumber ?? "-"}</td>
-                        <td className="px-6 py-5">{formatDate(row.startDate)}</td>
-                        <td className="px-6 py-5">{formatDate(row.endDate)}</td>
-                        <td className="px-6 py-5">
-                          <span
-                            className={`rounded-full px-3 py-1 text-sm font-medium ${getStatusBadge(
-                              row.status
-                            )}`}
-                          >
-                            {row.status}
-                          </span>
-                        </td>
-                        <td className="px-6 py-5">
-                          <button
-                            onClick={() => handleViewDetails(row.bookingID)}
-                            disabled={loadingBookingId === row.bookingID}
-                            className="rounded-xl bg-blue-600 px-5 py-2.5 font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-gray-400"
-                          >
-                            {loadingBookingId === row.bookingID
-                              ? "Loading..."
-                              : "View Details"}
-                          </button>
-                        </td>
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </section>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
 
           {message && (
-            <div className="mb-6 rounded-xl border border-blue-200 bg-blue-50 p-4 text-sm text-blue-800">
-              {message}
+            <div
+              className={`mt-4 rounded-xl border p-4 text-sm font-medium ${message.type === "error" ? "border-red-100 bg-red-50 text-red-800" : "border-green-100 bg-green-50 text-green-800"}`}
+            >
+              {message.text}
             </div>
           )}
 
-          <section className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
-            <h3 className="mb-4 text-2xl font-bold text-gray-900">Booking Details</h3>
-
-            {!selectedBooking ? (
-              <div className="rounded-xl border border-dashed border-gray-300 bg-gray-50 p-6 text-gray-500">
-                Select a booking from the table to load its real database details.
+          {selectedBooking && (
+            <div className="mt-8 rounded-xl border border-gray-200 bg-white p-8 shadow-md">
+              <div className="mb-6 flex items-center justify-between">
+                <h3 className="text-xl font-bold text-gray-900">
+                  Check-In Confirmation
+                </h3>
+                <span className="font-mono text-xs font-bold text-blue-600 bg-blue-50 px-3 py-1 rounded-full">
+                  {formatBookingId(selectedBooking.bookingid)}
+                </span>
               </div>
-            ) : (
-              <div className="space-y-6">
-                <div className="grid gap-4 md:grid-cols-2">
-                  <div className="rounded-xl bg-gray-50 p-5">
-                    <h4 className="mb-3 text-lg font-semibold text-gray-800">Booking Info</h4>
-                    <div className="space-y-2 text-sm text-gray-700">
-                      <p><strong>Booking ID:</strong> {selectedBooking.bookingID}</p>
-                      <p><strong>Customer ID:</strong> {selectedBooking.customerID}</p>
-                      <p><strong>Hotel ID:</strong> {selectedBooking.hotelID}</p>
-                      <p><strong>Room Number:</strong> {selectedBooking.roomNumber}</p>
-                      <p><strong>Start Date:</strong> {formatDate(selectedBooking.startDate)}</p>
-                      <p><strong>End Date:</strong> {formatDate(selectedBooking.endDate)}</p>
-                      <p><strong>Status:</strong> {selectedBooking.status}</p>
-                    </div>
-                  </div>
-
-                  <div className="rounded-xl bg-gray-50 p-5">
-                    <h4 className="mb-3 text-lg font-semibold text-gray-800">Snapshot Info</h4>
-                    <div className="space-y-2 text-sm text-gray-700">
-                      <p><strong>Customer Name:</strong> {selectedBooking.customerName}</p>
-                      <p><strong>Customer ID Snapshot:</strong> {selectedBooking.customerIdSnapshot}</p>
-                      <p><strong>Room Snapshot:</strong> {selectedBooking.roomSnapshot}</p>
-                      <p><strong>Hotel Snapshot:</strong> {selectedBooking.hotelSnapshot}</p>
-                      <p><strong>Chain Name:</strong> {selectedBooking.chainName}</p>
-                    </div>
+              <div className="grid gap-8 md:grid-cols-2">
+                <div className="space-y-4">
+                  <h4 className="text-[10px] font-bold uppercase text-gray-400">
+                    Stay Information
+                  </h4>
+                  <div className="rounded-xl border border-gray-100 bg-gray-50/50 p-4 space-y-2 text-sm">
+                    <p>
+                      <span className="font-bold text-gray-900">Guest:</span>{" "}
+                      {selectedBooking.customer_name_snapshot}
+                    </p>
+                    <p>
+                      <span className="font-bold text-gray-900">ID Info:</span>{" "}
+                      {selectedBooking.customer_id_snapshot}
+                    </p>
+                    <p>
+                      <span className="font-bold text-gray-900">Dates:</span>{" "}
+                      {formatDate(selectedBooking.start_date)} →{" "}
+                      {formatDate(selectedBooking.end_date)}
+                    </p>
                   </div>
                 </div>
-
-                <button
-                  onClick={handleCheckIn}
-                  className="w-full rounded-xl bg-blue-600 px-4 py-3 font-semibold text-white transition hover:bg-blue-700"
-                >
-                  Complete Check-In
-                </button>
+                <div className="space-y-4">
+                  <h4 className="text-[10px] font-bold uppercase text-gray-400">
+                    Assigned Room
+                  </h4>
+                  <div className="rounded-xl border border-blue-100 bg-blue-50/30 p-4 space-y-2 text-sm">
+                    <p>
+                      <span className="font-bold text-blue-900">Room:</span>{" "}
+                      {selectedBooking.room_snapshot}
+                    </p>
+                    <p>
+                      <span className="font-bold text-blue-900">Hotel:</span>{" "}
+                      {selectedBooking.hotel_snapshot}
+                    </p>
+                    <p>
+                      <span className="font-bold text-blue-900">Chain:</span>{" "}
+                      {selectedBooking.chain_name_snapshot}
+                    </p>
+                  </div>
+                </div>
               </div>
-            )}
-          </section>
-        </section>
-      </div>
+              <button
+                onClick={handleCheckIn}
+                className="mt-8 w-full rounded-xl bg-blue-600 py-4 text-sm font-bold text-white shadow-lg transition hover:bg-blue-700 active:scale-[0.99]"
+              >
+                Verify Guest & Complete Check-In
+              </button>
+            </div>
+          )}
+        </div>
+      </section>
     </main>
   );
 }
