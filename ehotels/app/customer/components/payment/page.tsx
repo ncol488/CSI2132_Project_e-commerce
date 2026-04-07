@@ -114,8 +114,6 @@ export default function CustomerPaymentsPage() {
       }
       setMessage("Payment recorded successfully! Thank you for your stay.");
       setMessageType("success");
-
-      // Refresh so the "already paid" section appears
       const refresh = await fetch(`/api/payments?rentingID=${rentingID}`);
       const refreshData = await refresh.json();
       if (refresh.ok) setDetails(refreshData);

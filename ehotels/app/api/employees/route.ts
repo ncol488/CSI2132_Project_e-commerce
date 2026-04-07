@@ -29,7 +29,7 @@ export async function GET() {
     console.error("GET /api/employees error:", error);
     return NextResponse.json(
       { error: "Failed to load employees." },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
@@ -67,16 +67,12 @@ export async function POST(req: NextRequest) {
     ) {
       return NextResponse.json(
         { error: "All fields are required." },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
     await client.query("BEGIN");
-
-    // lock employee table so two inserts do not pick the same recycled id
     await client.query(`LOCK TABLE ehotels.employee IN EXCLUSIVE MODE;`);
-
-    // find the smallest missing employeeid (so when last id is deleted, it starts from that number again)
     const nextIdResult = await client.query(`
       SELECT COALESCE(
         (
@@ -134,7 +130,7 @@ export async function POST(req: NextRequest) {
         postalCode,
         ssnSin,
         hotelID,
-      ]
+      ],
     );
 
     // insert role
@@ -143,7 +139,7 @@ export async function POST(req: NextRequest) {
       INSERT INTO ehotels.employee_role (employeeid, role_name)
       VALUES ($1, $2);
       `,
-      [newEmployeeID, roleName]
+      [newEmployeeID, roleName],
     );
 
     await client.query("COMMIT");
@@ -158,7 +154,7 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json(
       { error: error.message || "Failed to create employee." },
-      { status: 500 }
+      { status: 500 },
     );
   } finally {
     client.release();

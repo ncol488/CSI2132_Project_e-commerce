@@ -148,7 +148,7 @@ export default function CustomerPage() {
     setBookingLoading(true);
     setBookingError("");
 
-    console.log("bookingRoom:", bookingRoom); // add this temporarily to see what fields exist
+    console.log("bookingRoom:", bookingRoom);
 
     try {
       const res = await fetch("/api/bookings", {
@@ -156,8 +156,8 @@ export default function CustomerPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           customerID: customerID,
-          room_number: bookingRoom.room_id, // ← use room_id not room_number
-          hotelID: bookingRoom.hotel_id, // ← use hotel_id not hotelID
+          room_number: bookingRoom.room_id,
+          hotelID: bookingRoom.hotel_id,
           checkIn: details.checkIn,
           checkOut: details.checkOut,
           fullName: details.fullName,
@@ -380,7 +380,7 @@ export default function CustomerPage() {
                 <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
                   {rooms.map((room) => (
                     <RoomCard
-                      key={`${room.hotel_id}-${room.room_id}`} // ← composite key, room_number alone isn't unique across hotels
+                      key={`${room.hotel_id}-${room.room_id}`}
                       room={room}
                       onBook={setBookingRoom}
                     />

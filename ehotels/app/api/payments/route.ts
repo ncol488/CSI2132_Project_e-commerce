@@ -1,10 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 import pool from "@/lib/db";
-
-// NOTE: Payment table created in PostSQL to be able to save the data/use this route properly!!
-// associates with a rentingID, amount calculated with (room price) x (number of days checked in)
-
-// load payment info for one renting
 export async function GET(request: NextRequest) {
   const client = await pool.connect();
 
@@ -15,11 +10,9 @@ export async function GET(request: NextRequest) {
     if (!rentingID) {
       return NextResponse.json(
         { error: "A valid rentingID is required." },
-        { status: 400 }
+        { status: 400 },
       );
     }
-
-    // get the renting and room price
     const rentingResult = await client.query(
       `
       SELECT
@@ -40,13 +33,13 @@ export async function GET(request: NextRequest) {
        AND rm.room_number = r.room_number
       WHERE r.rentingID = $1
       `,
-      [rentingID]
+      [rentingID],
     );
 
     if (rentingResult.rows.length === 0) {
       return NextResponse.json(
         { error: "Renting not found." },
-        { status: 404 }
+        { status: 404 },
       );
     }
 
@@ -56,7 +49,9 @@ export async function GET(request: NextRequest) {
     const start = new Date(renting.start_date);
     const end = new Date(renting.end_date);
     const msPerDay = 1000 * 60 * 60 * 24;
-    const numberOfDays = Math.round((end.getTime() - start.getTime()) / msPerDay);
+    const numberOfDays = Math.round(
+      (end.getTime() - start.getTime()) / msPerDay,
+    );
 
     const pricePerDay = Number(renting.price);
     const totalAmount = Number((pricePerDay * numberOfDays).toFixed(2));
@@ -70,7 +65,7 @@ export async function GET(request: NextRequest) {
       ORDER BY paymentID DESC
       LIMIT 1
       `,
-      [rentingID]
+      [rentingID],
     );
 
     const existingPayment =
@@ -87,7 +82,7 @@ export async function GET(request: NextRequest) {
     console.error("GET /api/payments error:", error);
     return NextResponse.json(
       { error: "Could not load payment details." },
-      { status: 500 }
+      { status: 500 },
     );
   } finally {
     client.release();
@@ -106,7 +101,7 @@ export async function POST(request: Request) {
     if (!rentingID || !paymentMethod) {
       return NextResponse.json(
         { error: "rentingID and payment_method are required." },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -128,14 +123,14 @@ export async function POST(request: Request) {
        AND rm.room_number = r.room_number
       WHERE r.rentingID = $1
       `,
-      [rentingID]
+      [rentingID],
     );
 
     if (rentingResult.rows.length === 0) {
       await client.query("ROLLBACK");
       return NextResponse.json(
         { error: "Renting not found." },
-        { status: 404 }
+        { status: 404 },
       );
     }
 
@@ -149,27 +144,29 @@ export async function POST(request: Request) {
       WHERE rentingID = $1
       LIMIT 1
       `,
-      [rentingID]
+      [rentingID],
     );
 
     if (existingPaymentResult.rows.length > 0) {
       await client.query("ROLLBACK");
       return NextResponse.json(
         { error: "Payment already recorded for this renting." },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
     const start = new Date(renting.start_date);
     const end = new Date(renting.end_date);
     const msPerDay = 1000 * 60 * 60 * 24;
-    const numberOfDays = Math.round((end.getTime() - start.getTime()) / msPerDay);
+    const numberOfDays = Math.round(
+      (end.getTime() - start.getTime()) / msPerDay,
+    );
 
     if (numberOfDays <= 0) {
       await client.query("ROLLBACK");
       return NextResponse.json(
         { error: "Invalid renting dates." },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -181,7 +178,7 @@ export async function POST(request: Request) {
       `
       SELECT COALESCE(MAX(paymentID), 0) + 1 AS next_id
       FROM ehotels.payment
-      `
+      `,
     );
 
     const paymentID = paymentIdResult.rows[0].next_id;
@@ -197,7 +194,7 @@ export async function POST(request: Request) {
       )
       VALUES ($1, $2, $3, CURRENT_DATE, $4)
       `,
-      [paymentID, rentingID, totalAmount, paymentMethod]
+      [paymentID, rentingID, totalAmount, paymentMethod],
     );
 
     await client.query("COMMIT");
@@ -212,7 +209,7 @@ export async function POST(request: Request) {
     console.error("POST /api/payments error:", error);
     return NextResponse.json(
       { error: "Could not record payment." },
-      { status: 500 }
+      { status: 500 },
     );
   } finally {
     client.release();

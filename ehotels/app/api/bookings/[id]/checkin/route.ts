@@ -157,7 +157,7 @@ export async function POST(
   } catch (error) {
     await client.query("ROLLBACK");
 
-    console.error("CHECK-IN ERROR:", error); //for any errors, shows doesnt work
+    console.error("CHECK-IN ERROR:", error);
 
     return NextResponse.json(
       {

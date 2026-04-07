@@ -6,8 +6,6 @@ export async function POST(request: NextRequest) {
   try {
     const { email, password, role } = await request.json();
     const cookieStore = await cookies();
-
-    // --- CUSTOMER LOGIN ---
     if (role === "customer") {
       const res = await db.query(
         "SELECT * FROM ehotels.customer WHERE email = $1",
@@ -41,8 +39,6 @@ export async function POST(request: NextRequest) {
         });
       }
     }
-
-    // --- EMPLOYEE LOGIN ---
     if (role === "employee") {
       const res = await db.query(
         "SELECT * FROM ehotels.employee WHERE email = $1",

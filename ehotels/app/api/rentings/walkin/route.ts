@@ -40,7 +40,7 @@ export async function POST(request: Request) {
     ) {
       return NextResponse.json(
         { error: "Missing required renting fields." },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -48,7 +48,7 @@ export async function POST(request: Request) {
     if (start_date >= end_date) {
       return NextResponse.json(
         { error: "End date must be after start date." },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -63,8 +63,11 @@ export async function POST(request: Request) {
       if (!first_name || !last_name) {
         await client.query("ROLLBACK");
         return NextResponse.json(
-          { error: "First name and last name are required for existing customer search." },
-          { status: 400 }
+          {
+            error:
+              "First name and last name are required for existing customer search.",
+          },
+          { status: 400 },
         );
       }
 
@@ -75,24 +78,23 @@ export async function POST(request: Request) {
         WHERE LOWER(first_name) = LOWER($1)
           AND LOWER(last_name) = LOWER($2)
         `,
-        [first_name, last_name]
+        [first_name, last_name],
       );
-
-      // no match
       if (existingCustomerResult.rows.length === 0) {
         await client.query("ROLLBACK");
         return NextResponse.json(
           { error: "No customer found with that first and last name." },
-          { status: 404 }
+          { status: 404 },
         );
       }
-
-      // more than one match
       if (existingCustomerResult.rows.length > 1) {
         await client.query("ROLLBACK");
         return NextResponse.json(
-          { error: "Multiple customers found with that name. Please be more specific." },
-          { status: 400 }
+          {
+            error:
+              "Multiple customers found with that name. Please be more specific.",
+          },
+          { status: 400 },
         );
       }
 
@@ -119,7 +121,7 @@ export async function POST(request: Request) {
         await client.query("ROLLBACK");
         return NextResponse.json(
           { error: "Missing required new customer fields." },
-          { status: 400 }
+          { status: 400 },
         );
       }
 
@@ -127,7 +129,7 @@ export async function POST(request: Request) {
         `
         SELECT COALESCE(MAX(customerID), 0) + 1 AS next_id
         FROM ehotels.customer
-        `
+        `,
       );
 
       finalCustomerID = newCustomerIdResult.rows[0].next_id;
@@ -158,7 +160,7 @@ export async function POST(request: Request) {
           postal_code,
           id_type,
           id_value,
-        ]
+        ],
       );
 
       customerNameSnapshot = `${first_name} ${last_name}`;
@@ -167,7 +169,7 @@ export async function POST(request: Request) {
       await client.query("ROLLBACK");
       return NextResponse.json(
         { error: "Invalid customer mode." },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -178,14 +180,14 @@ export async function POST(request: Request) {
       FROM ehotels.hotel
       WHERE hotelID = $1
       `,
-      [parsedHotelID]
+      [parsedHotelID],
     );
 
     if (hotelResult.rows.length === 0) {
       await client.query("ROLLBACK");
       return NextResponse.json(
         { error: "That hotel does not exist." },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -196,14 +198,14 @@ export async function POST(request: Request) {
       FROM ehotels.room
       WHERE hotelID = $1 AND room_number = $2
       `,
-      [parsedHotelID, parsedRoomNumber]
+      [parsedHotelID, parsedRoomNumber],
     );
 
     if (roomResult.rows.length === 0) {
       await client.query("ROLLBACK");
       return NextResponse.json(
         { error: "That room does not exist in the selected hotel." },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -218,14 +220,14 @@ export async function POST(request: Request) {
         AND start_date < $4
         AND end_date > $3
       `,
-      [parsedHotelID, parsedRoomNumber, start_date, end_date]
+      [parsedHotelID, parsedRoomNumber, start_date, end_date],
     );
 
     if (bookingConflict.rows.length > 0) {
       await client.query("ROLLBACK");
       return NextResponse.json(
         { error: "This room is already booked for the selected dates." },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -239,14 +241,14 @@ export async function POST(request: Request) {
         AND start_date < $4
         AND end_date > $3
       `,
-      [parsedHotelID, parsedRoomNumber, start_date, end_date]
+      [parsedHotelID, parsedRoomNumber, start_date, end_date],
     );
 
     if (rentingConflict.rows.length > 0) {
       await client.query("ROLLBACK");
       return NextResponse.json(
         { error: "This room is already being rented for the selected dates." },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -255,7 +257,7 @@ export async function POST(request: Request) {
       `
       SELECT COALESCE(MAX(rentingID), 0) + 1 AS next_id
       FROM ehotels.renting
-      `
+      `,
     );
 
     const newRentingID = newRentingIdResult.rows[0].next_id;
@@ -307,7 +309,7 @@ export async function POST(request: Request) {
         roomSnapshot,
         hotelSnapshot,
         chainNameSnapshot,
-      ]
+      ],
     );
 
     await client.query("COMMIT");
@@ -322,7 +324,7 @@ export async function POST(request: Request) {
     console.error("POST WALK-IN RENTING ERROR:", error);
     return NextResponse.json(
       { error: "Server error while creating walk-in renting." },
-      { status: 500 }
+      { status: 500 },
     );
   } finally {
     client.release();

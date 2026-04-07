@@ -71,7 +71,6 @@ export default function CheckInPage() {
           });
           return;
         }
-        // Handle both {bookings: []} and [] formats
         const rows = data.bookings || (Array.isArray(data) ? data : []);
         setBookingRows(rows);
       } catch {
@@ -94,12 +93,10 @@ export default function CheckInPage() {
     );
   }, [search, bookingRows]);
 
-  // Logic to show details for a specific booking
   async function handleViewDetails(bookingID: number) {
     setLoadingBookingId(bookingID);
     setMessage(null);
     try {
-      // Note: You must have an API route at /api/bookings/[id]/route.ts for this to work
       const response = await fetch(`/api/bookings/${bookingID}`);
       const data = await response.json();
       console.log("booking details response:", data);
@@ -138,7 +135,6 @@ export default function CheckInPage() {
         text: `Check-in successful! Renting ID: ${data.rentingID}`,
       });
 
-      // Refresh Table
       const refreshed = await fetch("/api/bookings");
       const refreshedData = await refreshed.json();
       setBookingRows(refreshedData.bookings || refreshedData);

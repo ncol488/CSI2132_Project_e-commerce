@@ -30,13 +30,13 @@ export async function GET(req: NextRequest, { params }: Params) {
       FROM ehotels.customer
       WHERE customerid = $1;
       `,
-      [id]
+      [id],
     );
 
     if (result.rows.length === 0) {
       return NextResponse.json(
         { error: "Customer not found." },
-        { status: 404 }
+        { status: 404 },
       );
     }
 
@@ -45,7 +45,7 @@ export async function GET(req: NextRequest, { params }: Params) {
     console.error("GET /api/customers/[id] error:", error);
     return NextResponse.json(
       { error: "Failed to load customer." },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
@@ -71,7 +71,7 @@ export async function PUT(req: NextRequest, { params }: Params) {
     if (
       !firstName ||
       !lastName ||
-      !email||
+      !email ||
       !street ||
       !city ||
       !province ||
@@ -81,7 +81,7 @@ export async function PUT(req: NextRequest, { params }: Params) {
     ) {
       return NextResponse.json(
         { error: "All fields are required." },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -112,13 +112,13 @@ export async function PUT(req: NextRequest, { params }: Params) {
         idType,
         idValue,
         id,
-      ]
+      ],
     );
 
     if (result.rows.length === 0) {
       return NextResponse.json(
         { error: "Customer not found." },
-        { status: 404 }
+        { status: 404 },
       );
     }
 
@@ -130,7 +130,7 @@ export async function PUT(req: NextRequest, { params }: Params) {
     console.error("PUT /api/customers/[id] error:", error);
     return NextResponse.json(
       { error: "Failed to update customer." },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
@@ -146,13 +146,13 @@ export async function DELETE(req: NextRequest, { params }: Params) {
       WHERE customerid = $1
       RETURNING customerid AS "customerID";
       `,
-      [id]
+      [id],
     );
 
     if (result.rows.length === 0) {
       return NextResponse.json(
         { error: "Customer not found." },
-        { status: 404 }
+        { status: 404 },
       );
     }
 
@@ -163,20 +163,19 @@ export async function DELETE(req: NextRequest, { params }: Params) {
   } catch (error: any) {
     console.error("DELETE /api/customers/[id] error:", error);
 
-    // helpful message if bookings/rentings reference that customer, so that rentings can be associated to a customer at all times
     if (error.code === "23503") {
       return NextResponse.json(
         {
           error:
             "This customer cannot be deleted because they are linked to existing bookings or rentings.",
         },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
     return NextResponse.json(
       { error: "Failed to delete customer." },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

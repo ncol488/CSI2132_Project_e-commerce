@@ -30,7 +30,7 @@ export async function GET(
 
     const b = result.rows[0];
     return NextResponse.json({
-      bookingID: b.bookingid, // ← DB gives lowercase, rename to capital
+      bookingID: b.bookingid,
       customerid: b.customerid,
       hotelid: b.hotelid,
       room_number: b.room_number,
@@ -51,7 +51,6 @@ export async function GET(
     );
   }
 }
-// ── PATCH: Cancel a booking (Customer Side) ──────────────────────────────────
 export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
@@ -77,7 +76,6 @@ export async function PATCH(
       );
     }
 
-    // Verify booking exists and belongs to this customer
     const existing = await db.query(
       `SELECT bookingID, status, start_date, customerID
        FROM ehotels.Booking

@@ -1,15 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import db from "@/lib/db";
 
-// ── GET /api/bookings ─────────────────────────────────────────────────────────
-// ?customerID=X  → customer's own bookings (My Bookings page)
-// no params      → all confirmed bookings not yet checked in (employee tab)
-
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const customerIDParam = searchParams.get("customerID");
-
-  // Guard against "null" or "undefined" being passed as a string
   const customerID =
     customerIDParam &&
     customerIDParam !== "null" &&
@@ -18,7 +12,6 @@ export async function GET(request: NextRequest) {
       : null;
 
   try {
-    // ── Customer: their own bookings ──────────────────────────────────────────
     if (customerID) {
       const result = await db.query(
         `SELECT
@@ -85,8 +78,6 @@ export async function GET(request: NextRequest) {
 
       return NextResponse.json({ bookings });
     }
-
-    // ── Employee: all confirmed bookings not yet checked in ───────────────────
     const result = await db.query(`
       SELECT
         b.bookingid          AS "bookingID",
@@ -117,9 +108,6 @@ export async function GET(request: NextRequest) {
   }
 }
 
-// ── POST /api/bookings ────────────────────────────────────────────────────────
-// Creates a new booking (called from the customer BookingModal)
-
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
@@ -134,7 +122,6 @@ export async function POST(request: NextRequest) {
       idNumber,
     } = body;
 
-    // 1. Validation
     if (!customerID || !room_number || !hotelID || !checkIn || !checkOut) {
       return NextResponse.json(
         {
@@ -162,8 +149,6 @@ export async function POST(request: NextRequest) {
         { status: 400 },
       );
     }
-
-    // 2. Overlap check — bookings
     const overlapBooking = await db.query(
       `SELECT 1 FROM ehotels.Booking
        WHERE room_number = $1 AND hotelID = $2
@@ -178,8 +163,6 @@ export async function POST(request: NextRequest) {
         { status: 409 },
       );
     }
-
-    // 3. Overlap check — rentings
     const overlapRenting = await db.query(
       `SELECT 1 FROM ehotels.Renting
        WHERE room_number = $1 AND hotelID = $2
@@ -193,8 +176,6 @@ export async function POST(request: NextRequest) {
         { status: 409 },
       );
     }
-
-    // 4. Fetch room + hotel + chain for snapshots
     const roomRes = await db.query(
       `SELECT r.*, h.hotel_name, h.street, h.city, h.province, h.postal_code, h.category, hc.chain_name
        FROM ehotels.Room r
@@ -210,19 +191,14 @@ export async function POST(request: NextRequest) {
 
     const rm = roomRes.rows[0];
 
-    // 5. Build snapshot strings
     const roomSnapshot = `Room ${rm.room_number}, capacity ${rm.capacity}, ${rm.view_type} view${rm.extendable ? ", extendable" : ""}`;
     const hotelSnapshot = `${rm.hotel_name}, ${rm.street}, ${rm.city}, ${rm.province}, ${rm.postal_code}, category ${rm.category}`;
     const customerIDSnapshot =
       idType && idNumber ? `${idType}: ${idNumber}` : `CID: ${customerID}`;
-
-    // 6. Generate next bookingID
     const maxID = await db.query(
       `SELECT COALESCE(MAX(bookingid), 0) + 1 AS next_id FROM ehotels.Booking`,
     );
     const nextBookingID = maxID.rows[0].next_id;
-
-    // 7. Insert booking
     await db.query(
       `INSERT INTO ehotels.Booking (
          bookingid, start_date, end_date, status,
@@ -251,7 +227,6 @@ export async function POST(request: NextRequest) {
     );
   } catch (error: any) {
     console.error("POST /api/bookings error:", error);
-    // Trigger raised exception (overlap caught at DB level)
     if (error.code === "P0001") {
       return NextResponse.json({ error: error.message }, { status: 409 });
     }

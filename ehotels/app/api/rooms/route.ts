@@ -33,7 +33,6 @@ export async function GET(request: NextRequest) {
       : [];
 
   try {
-    // ── CUSTOMER SEARCH ────────────────────────────────────────────────────────
     if (isCustomerSearch) {
       let query = `
         SELECT
@@ -94,17 +93,12 @@ export async function GET(request: NextRequest) {
 
       const values: (number | string)[] = [];
       const where: string[] = [];
-
-      // Price range (skip for showAll)
       if (!showAll) {
         where.push(
           `r.price BETWEEN $${values.length + 1} AND $${values.length + 2}`,
         );
         values.push(parseFloat(minPrice), parseFloat(maxPrice));
       }
-
-      // Availability filter — only exclude unavailable rooms when dates are given
-      // (for showAll we show everything and just mark unavailable visually)
       if (!showAll && checkIn && checkOut) {
         where.push(`
           NOT EXISTS (
@@ -189,8 +183,6 @@ export async function GET(request: NextRequest) {
 
       return NextResponse.json({ rooms });
     }
-
-    // ── EMPLOYEE RAW LIST (no filters) ────────────────────────────────────────
     const result = await db.query(`
       SELECT
         r.room_number    AS "roomNumber",
@@ -225,8 +217,6 @@ export async function GET(request: NextRequest) {
     );
   }
 }
-
-// ── POST: Add New Room (Employee) ─────────────────────────────────────────────
 export async function POST(req: NextRequest) {
   const client = await db.connect();
   try {

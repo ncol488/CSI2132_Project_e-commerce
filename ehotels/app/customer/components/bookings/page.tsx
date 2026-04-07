@@ -52,13 +52,10 @@ export default function MyBookingsPage() {
     }
     setCustomerID(parseInt(stored));
   }, []);
-
-  // Fetch bookings when customerID is set
   useEffect(() => {
     if (customerID !== null) fetchBookings();
   }, [customerID]);
 
-  // Refresh when customer navigates back to this page (e.g. after paying)
   useEffect(() => {
     const handleVisible = () => {
       if (document.visibilityState === "visible" && customerID !== null) {
@@ -81,7 +78,6 @@ export default function MyBookingsPage() {
       } else {
         const rows: Booking[] = data.bookings || [];
         setBookings(rows);
-        // Check payment status for every checked-in booking that has a rentingID
         rows
           .filter((b) => b.status === "checked-in" && b.rentingID)
           .forEach((b) => {
@@ -100,8 +96,6 @@ export default function MyBookingsPage() {
       setLoading(false);
     }
   };
-
-  // Uses GET /api/payments?rentingID=X — checks existingPayment field
   const checkPaymentStatus = async (bookingID: number, rentingID: number) => {
     setPaymentStatus((prev) => ({ ...prev, [bookingID]: "checking" }));
     try {
@@ -332,8 +326,6 @@ export default function MyBookingsPage() {
     </div>
   );
 }
-
-// ── Booking Card ──────────────────────────────────────────────────────────────
 
 function BookingCard({
   booking,
